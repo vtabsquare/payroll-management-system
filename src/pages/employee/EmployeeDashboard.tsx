@@ -1,19 +1,49 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { IndianRupee, CheckCircle, FileText } from "lucide-react";
-import { payrollRecords, monthNames } from "@/lib/mockData";
+import type { Employee, PayrollRecord } from "@/lib/payroll";
+import { monthNames } from "@/lib/payroll";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { Badge } from "@/components/ui/badge";
 import AnimatedCounter from "@/components/AnimatedCounter";
-
-// Simulate current employee = EMP001
-const empRecords = payrollRecords.filter((r) => r.emp_id === "EMP001");
-const latest = empRecords[empRecords.length - 1];
+import { api } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function EmployeeDashboard() {
+  const [profile, setProfile] = useState<Employee | null>(null);
+  const [records, setRecords] = useState<PayrollRecord[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [profileResponse, payrollResponse] = await Promise.all([api.getProfile(), api.getPayroll()]);
+        setProfile(profileResponse.profile);
+        setRecords(payrollResponse.payroll);
+      } catch (error) {
+        toast({
+          title: "Failed to load dashboard",
+          description: error instanceof Error ? error.message : "Unknown error",
+          variant: "destructive",
+        });
+      }
+    };
+
+    load();
+  }, []);
+
+  const latest = useMemo(() => {
+    const sorted = [...records].sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+    return sorted[sorted.length - 1] || null;
+  }, [records]);
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Welcome, Arjun 👋</h1>
+        <h1 className="text-2xl font-bold text-foreground">Welcome, {profile?.first_name || "Employee"} 👋</h1>
         <p className="text-muted-foreground text-sm mt-1">Here's your latest salary overview</p>
       </div>
 
@@ -24,7 +54,7 @@ export default function EmployeeDashboard() {
             <IndianRupee className="w-5 h-5 text-primary" />
           </div>
           <div className="text-2xl font-bold text-foreground">
-            <AnimatedCounter value={latest?.net || 0} prefix="₹" />
+            <AnimatedCounter value={latest?.net_salary || 0} prefix="₹" />
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             {latest ? `${monthNames[latest.month - 1]} ${latest.year}` : "—"}
@@ -46,7 +76,7 @@ export default function EmployeeDashboard() {
             <span className="text-sm text-muted-foreground">Total Records</span>
             <FileText className="w-5 h-5 text-info" />
           </div>
-          <div className="text-2xl font-bold text-foreground">{empRecords.length}</div>
+          <div className="text-2xl font-bold text-foreground">{records.length}</div>
         </motion.div>
       </div>
 
@@ -56,10 +86,10 @@ export default function EmployeeDashboard() {
           <h3 className="font-semibold text-foreground mb-4">Quick Payslip — {monthNames[latest.month - 1]} {latest.year}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             {[
-              { label: "Basic", value: latest.basic },
+              { label: "Basic", value: latest.basic_salary },
               { label: "HRA", value: latest.hra },
-              { label: "Gross", value: latest.gross },
-              { label: "Net Pay", value: latest.net },
+              { label: "Gross", value: latest.gross_salary },
+              { label: "Net Pay", value: latest.net_salary },
             ].map((item) => (
               <div key={item.label} className="bg-muted/30 rounded-lg p-3">
                 <p className="text-muted-foreground text-xs">{item.label}</p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
@@ -6,24 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
   const role = searchParams.get("role") || "admin";
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login, loading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    // Mock authentication
-    if (email && password) {
-      toast({ title: "Login successful", description: `Welcome back!` });
-      navigate(role === "admin" ? "/admin" : "/employee");
-    } else {
+    if (!email || !password) {
       toast({ title: "Error", description: "Please fill all fields", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await login({ email, password, role: role === "employee" ? "employee" : "admin" });
+      toast({ title: "Login successful", description: "Welcome back!" });
+      navigate(role === "admin" ? "/admin" : "/employee");
+    } catch (error) {
+      toast({
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "Invalid credentials",
+        variant: "destructive",
+      });
     }
   };
 
@@ -61,7 +72,7 @@ export default function Login() {
         >
           <div className="glass-card rounded-2xl p-8">
             <div className="mb-8">
-              <span className="text-2xl font-bold gradient-text">PayFlow</span>
+              <span className="text-2xl font-bold gradient-text">Payroll</span>
               <h2 className="text-xl font-semibold text-foreground mt-4">Sign in</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Enter your credentials to continue
@@ -102,14 +113,19 @@ export default function Login() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11 gradient-primary text-primary-foreground border-0 font-semibold">
-                Sign In
+              <Button type="submit" className="w-full h-11 gradient-primary text-primary-foreground border-0 font-semibold" disabled={loading}>
+                {loading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
 
-            <p className="text-xs text-muted-foreground text-center mt-6">
-              Demo: use any email/password to login
-            </p>
+            <div className="text-center mt-6 space-y-2">
+              <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+                Forgot Password?
+              </Link>
+              <p className="text-xs text-muted-foreground">
+                Default demo users: admin@company.com / Admin@123, arjun@company.com / Employee@123
+              </p>
+            </div>
           </div>
 
           <div className="mt-4 text-center lg:hidden">

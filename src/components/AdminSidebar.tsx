@@ -3,12 +3,15 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, UserCog, Upload, Calculator,
-  FileText, Receipt, ChevronLeft, ChevronRight, LogOut
+  FileText, Receipt, Calendar, ChevronLeft, ChevronRight, LogOut
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
   { label: "Employees", icon: Users, path: "/admin/employees" },
+  { label: "Salary Schedule", icon: Calendar, path: "/admin/salary-schedule" },
   { label: "User Mgmt", icon: UserCog, path: "/admin/users" },
   { label: "Attendance", icon: Upload, path: "/admin/attendance" },
   { label: "Generate Payroll", icon: Calculator, path: "/admin/generate" },
@@ -19,6 +22,7 @@ const navItems = [
 export default function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { logout } = useAuth();
 
   return (
     <motion.aside
@@ -36,7 +40,7 @@ export default function AdminSidebar() {
               exit={{ opacity: 0 }}
               className="text-lg font-bold text-sidebar-primary"
             >
-              PayFlow
+              Payroll
             </motion.span>
           )}
         </AnimatePresence>
@@ -74,7 +78,8 @@ export default function AdminSidebar() {
 
       {/* Bottom */}
       <div className="p-3 border-t border-sidebar-border space-y-1">
-        <Link to="/" className="sidebar-link text-destructive">
+        <ThemeToggle compact={collapsed} />
+        <Link to="/" className="sidebar-link text-destructive" onClick={logout}>
           <LogOut className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Logout</span>}
         </Link>

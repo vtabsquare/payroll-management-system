@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, History, User, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/employee" },
@@ -12,6 +14,7 @@ const navItems = [
 export default function EmployeeSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { logout } = useAuth();
 
   return (
     <motion.aside
@@ -21,7 +24,7 @@ export default function EmployeeSidebar() {
     >
       <div className="h-16 flex items-center px-5 border-b border-sidebar-border">
         {!collapsed ? (
-          <span className="text-lg font-bold text-sidebar-primary">PayFlow</span>
+          <span className="text-lg font-bold text-sidebar-primary">Payroll</span>
         ) : (
           <span className="text-lg font-bold text-sidebar-primary">P</span>
         )}
@@ -50,7 +53,8 @@ export default function EmployeeSidebar() {
       </nav>
 
       <div className="p-3 border-t border-sidebar-border space-y-1">
-        <Link to="/" className="sidebar-link text-destructive">
+        <ThemeToggle compact={collapsed} />
+        <Link to="/" className="sidebar-link text-destructive" onClick={logout}>
           <LogOut className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Logout</span>}
         </Link>

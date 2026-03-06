@@ -1,53 +1,78 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { employees } from "@/lib/mockData";
+import type { Employee } from "@/lib/payroll";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { User, Building, CreditCard, Calendar } from "lucide-react";
-
-const emp = employees[0]; // Simulate logged-in employee
-
-const sections = [
-  {
-    title: "Personal Information",
-    icon: User,
-    fields: [
-      { label: "Full Name", value: emp.name },
-      { label: "Email", value: emp.email },
-      { label: "Employee ID", value: emp.emp_id },
-      { label: "PAN", value: emp.pan },
-    ],
-  },
-  {
-    title: "Employment Details",
-    icon: Building,
-    fields: [
-      { label: "Department", value: emp.department },
-      { label: "Designation", value: emp.designation },
-      { label: "Joining Date", value: emp.joining_date },
-      { label: "Status", value: emp.status },
-    ],
-  },
-  {
-    title: "Bank Details",
-    icon: CreditCard,
-    fields: [
-      { label: "Bank Name", value: emp.bank_name },
-      { label: "Account Number", value: emp.account_number },
-      { label: "IFSC Code", value: emp.ifsc_code },
-    ],
-  },
-  {
-    title: "Salary Structure",
-    icon: Calendar,
-    fields: [
-      { label: "Base Salary", value: formatCurrency(emp.base_salary) },
-      { label: "Other Allowance", value: formatCurrency(emp.other_allowance) },
-      { label: "Special Pay", value: formatCurrency(emp.special_pay) },
-      { label: "Incentive", value: `${formatCurrency(emp.incentive_amount)} (${emp.incentive_type})` },
-    ],
-  },
-];
+import { api } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Profile() {
+  const [profile, setProfile] = useState<Employee | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await api.getProfile();
+        setProfile(response.profile);
+      } catch (error) {
+        toast({
+          title: "Failed to load profile",
+          description: error instanceof Error ? error.message : "Unknown error",
+          variant: "destructive",
+        });
+      }
+    };
+
+    load();
+  }, []);
+
+  const sections = useMemo(() => {
+    if (!profile) return [];
+
+    return [
+      {
+        title: "Personal Information",
+        icon: User,
+        fields: [
+          { label: "Full Name", value: `${profile.first_name} ${profile.last_name}` },
+          { label: "Email", value: profile.company_email },
+          { label: "Employee ID", value: profile.employee_id },
+          { label: "PAN", value: profile.pan_number || "—" },
+        ],
+      },
+      {
+        title: "Employment Details",
+        icon: Building,
+        fields: [
+          { label: "Employee Type", value: profile.employee_type || "—" },
+          { label: "Designation", value: profile.designation },
+          { label: "Joining Date", value: profile.date_of_joining },
+          { label: "Status", value: profile.status },
+        ],
+      },
+      {
+        title: "Bank Details",
+        icon: CreditCard,
+        fields: [
+          { label: "Bank Name", value: profile.bank_name },
+          { label: "Account Number", value: profile.account_number },
+          { label: "IFSC Code", value: profile.ifsc_code },
+        ],
+      },
+      {
+        title: "Salary Structure",
+        icon: Calendar,
+        fields: [
+          { label: "Base Salary", value: formatCurrency(profile.base_salary) },
+          { label: "HRA", value: formatCurrency(profile.hra) },
+          { label: "Other Allowance", value: formatCurrency(profile.other_allowance) },
+          { label: "Special Pay", value: formatCurrency(profile.special_pay) },
+        ],
+      },
+    ];
+  }, [profile]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -56,6 +81,9 @@ export default function Profile() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {!profile && (
+          <div className="glass-card rounded-xl p-6 text-sm text-muted-foreground">Loading profile...</div>
+        )}
         {sections.map((section, i) => (
           <motion.div
             key={section.title}

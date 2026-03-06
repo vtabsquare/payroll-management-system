@@ -44,7 +44,7 @@ export default function Landing() {
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 glass-card border-b border-border/30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold gradient-text">PayFlow</span>
+          <span className="text-xl font-bold gradient-text">Payroll</span>
           <div className="flex gap-3">
             <Link to="/login?role=employee">
               <Button variant="ghost" size="sm">Employee Login</Button>
@@ -151,8 +151,8 @@ export default function Landing() {
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <span className="text-sm font-bold gradient-text">PayFlow</span>
-          <span className="text-xs text-muted-foreground">© 2026 PayFlow. All rights reserved.</span>
+          <span className="text-sm font-bold gradient-text">Payroll</span>
+          <span className="text-xs text-muted-foreground">© 2026 Payroll. All rights reserved.</span>
         </div>
       </footer>
     </div>
