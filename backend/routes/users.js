@@ -116,7 +116,7 @@ router.patch("/:id", async (req, res) => {
       db.getAll(SHEETS.USERS),
       db.getAll(SHEETS.EMPLOYEES),
     ]);
-    const current = users.find((user) => String(user.id) === String(req.params.id));
+    const current = users.find((user) => String(user.user_id) === String(req.params.id));
     if (!current) {
       return res.status(404).json({ message: "User not found" });
     }
