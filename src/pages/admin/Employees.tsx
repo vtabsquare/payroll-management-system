@@ -998,6 +998,16 @@ export default function EmployeesPage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label className="text-sm font-medium">Designation *</Label>
+                      <Input 
+                        value={formData.designation || ""}
+                        onChange={(e) => handleInputChange("designation", e.target.value)}
+                        placeholder="e.g. Software Engineer, Manager"
+                        required
+                        className="h-11" 
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label className="text-sm font-medium">Date of Joining</Label>
                       <Input 
                         value={formData.date_of_joining || ""}
