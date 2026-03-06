@@ -29,11 +29,11 @@ export default function EmployeesPage() {
   const [formStep, setFormStep] = useState(1);
   const [formData, setFormData] = useState<Partial<Employee>>({});
   const [showDropdown, setShowDropdown] = useState(false);
-  const [editingLedger, setEditingLedger] = useState<IncentiveLedgerEntry | null>(null);
-  const [ledgerEditOpen, setLedgerEditOpen] = useState(false);
-  const [ledgerAmount, setLedgerAmount] = useState("");
-  const [ledgerPaidOut, setLedgerPaidOut] = useState(false);
-  const [ledgerPayoutReferenceMonth, setLedgerPayoutReferenceMonth] = useState("");
+  const [payoutOpen, setPayoutOpen] = useState(false);
+  const [payoutEmployeeId, setPayoutEmployeeId] = useState("");
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutDate, setPayoutDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payoutReference, setPayoutReference] = useState("");
   const [ledgerSaving, setLedgerSaving] = useState(false);
   const { toast } = useToast();
 
@@ -86,6 +86,58 @@ export default function EmployeesPage() {
       setLoading(false);
     }
   };
+
+  const ledgerSummary = useMemo(() => {
+    const byEmployee = new Map<string, IncentiveLedgerEntry[]>();
+    for (const entry of incentiveLedger) {
+      const rows = byEmployee.get(entry.employee_id) || [];
+      rows.push(entry);
+      byEmployee.set(entry.employee_id, rows);
+    }
+
+    let totalBalance = 0;
+    let totalPaidOut = 0;
+    let latestPayoutDate = "";
+
+    for (const entries of byEmployee.values()) {
+      const ordered = [...entries].sort((a, b) => {
+        const diff = (Number(a.year) * 12 + Number(a.month)) - (Number(b.year) * 12 + Number(b.month));
+        if (diff !== 0) return diff;
+        return Number(a.ledger_id) - Number(b.ledger_id);
+      });
+      const latest = ordered[ordered.length - 1];
+      totalBalance += Number(latest?.running_balance || 0);
+
+      for (const entry of entries) {
+        if (entry.entry_type === "payout") {
+          totalPaidOut += Number(entry.amount || 0);
+          if (!latestPayoutDate || String(entry.transaction_date || "") > latestPayoutDate) {
+            latestPayoutDate = String(entry.transaction_date || "");
+          }
+        }
+      }
+    }
+
+    return {
+      totalBalance,
+      totalPaidOut,
+      latestPayoutDate,
+    };
+  }, [incentiveLedger]);
+
+  const payoutEmployeeOptions = useMemo(() => {
+    const balances = new Map<string, number>();
+    for (const entry of incentiveLedger) {
+      balances.set(entry.employee_id, Number(entry.running_balance || 0));
+    }
+    return list
+      .map((employee) => ({
+        employee,
+        balance: balances.get(employee.employee_id) || 0,
+      }))
+      .filter((item) => item.balance > 0)
+      .sort((a, b) => b.balance - a.balance);
+  }, [incentiveLedger, list]);
 
   const loadIncentiveLedger = async () => {
     try {
@@ -171,15 +223,6 @@ export default function EmployeesPage() {
 
   const openAdd = () => { setEditing(null); setFormData({}); setFormStep(1); setModalOpen(true); };
   const openEdit = (emp: Employee) => { setEditing(emp); setFormData(emp); setFormStep(1); setModalOpen(true); };
-
-  const openLedgerEdit = (entry: IncentiveLedgerEntry) => {
-    const paidOut = entry.paid_out === true || String(entry.paid_out).toLowerCase() === "true";
-    setEditingLedger(entry);
-    setLedgerAmount(String(Number(entry.amount_deducted || 0)));
-    setLedgerPaidOut(paidOut);
-    setLedgerPayoutReferenceMonth(String(entry.payout_reference_month || ""));
-    setLedgerEditOpen(true);
-  };
 
   const handleInputChange = (field: keyof Employee, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -365,13 +408,13 @@ export default function EmployeesPage() {
 
   const handleLedgerSave = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingLedger) return;
+    if (!payoutEmployeeId) return;
 
-    const parsedAmount = Number(ledgerAmount);
-    if (!Number.isFinite(parsedAmount)) {
+    const parsedAmount = Number(payoutAmount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       toast({
         title: "Invalid amount",
-        description: "Amount deducted must be a valid number",
+        description: "Payout amount must be a valid positive number",
         variant: "destructive",
       });
       return;
@@ -379,25 +422,26 @@ export default function EmployeesPage() {
 
     try {
       setLedgerSaving(true);
-      const response = await api.updateIncentiveLedger(editingLedger.ledger_id, {
-        amount_deducted: parsedAmount,
-        paid_out: ledgerPaidOut,
-        payout_reference_month: ledgerPayoutReferenceMonth.trim(),
+      const response = await api.createIncentivePayout({
+        employee_id: payoutEmployeeId,
+        payout_amount: parsedAmount,
+        payout_date: payoutDate,
+        reference: payoutReference.trim(),
       });
 
-      setIncentiveLedger((prev) =>
-        prev.map((item) =>
-          item.ledger_id === editingLedger.ledger_id
-            ? { ...item, ...response.ledger, employee_name: item.employee_name }
-            : item
-        )
-      );
-      toast({ title: "Ledger entry updated" });
-      setLedgerEditOpen(false);
-      setEditingLedger(null);
+      const employeeName = list.find((employee) => employee.employee_id === payoutEmployeeId);
+      setIncentiveLedger((prev) => [{
+        ...response.ledger,
+        employee_name: employeeName ? `${employeeName.first_name} ${employeeName.last_name}`.trim() : response.ledger.employee_name,
+      }, ...prev]);
+      toast({ title: "Payout recorded" });
+      setPayoutOpen(false);
+      setPayoutEmployeeId("");
+      setPayoutAmount("");
+      setPayoutReference("");
     } catch (error) {
       toast({
-        title: "Update failed",
+        title: "Payout failed",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
@@ -697,34 +741,67 @@ export default function EmployeesPage() {
         </div>
       )}
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="glass-card border-border/60">
+          <CardContent className="p-5">
+            <div className="text-xs text-muted-foreground">Current Unpaid Incentive Balance</div>
+            <div className="mt-2 text-2xl font-semibold text-foreground">{formatCurrency(ledgerSummary.totalBalance)}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-border/60">
+          <CardContent className="p-5">
+            <div className="text-xs text-muted-foreground">Total Paid Out</div>
+            <div className="mt-2 text-2xl font-semibold text-foreground">{formatCurrency(ledgerSummary.totalPaidOut)}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-border/60">
+          <CardContent className="p-5">
+            <div className="text-xs text-muted-foreground">Last Payout Date</div>
+            <div className="mt-2 text-2xl font-semibold text-foreground">{ledgerSummary.latestPayoutDate || "-"}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="glass-card rounded-xl overflow-hidden">
         <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-foreground">Incentive Ledger</h3>
-            <p className="text-xs text-muted-foreground mt-1">Track monthly deductions and whether payout is completed.</p>
+            <p className="text-xs text-muted-foreground mt-1">Track deduction and payout transactions with running balance.</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              try {
-                const result = await api.recalculateLedgerTotals();
-                toast({
-                  title: "Success",
-                  description: `Recalculated ${result.updatedCount} ledger entries`,
-                });
-                loadIncentiveLedger();
-              } catch (error: any) {
-                toast({
-                  title: "Error",
-                  description: error.message || "Failed to recalculate totals",
-                  variant: "destructive",
-                });
-              }
-            }}
-          >
-            Recalculate Totals
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const result = await api.recalculateLedgerTotals();
+                  toast({
+                    title: "Success",
+                    description: `Recalculated ${result.updatedCount} ledger entries`,
+                  });
+                  loadIncentiveLedger();
+                } catch (error: any) {
+                  toast({
+                    title: "Error",
+                    description: error.message || "Failed to recalculate totals",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              Recalculate Totals
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setPayoutOpen(true);
+                setPayoutDate(new Date().toISOString().slice(0, 10));
+              }}
+              className="gradient-primary text-primary-foreground border-0"
+            >
+              Pay Incentive
+            </Button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[1100px]">
@@ -732,19 +809,18 @@ export default function EmployeesPage() {
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left p-3 font-medium text-muted-foreground">Ledger ID</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Employee</th>
-                <th className="text-right p-3 font-medium text-muted-foreground">Month</th>
-                <th className="text-right p-3 font-medium text-muted-foreground">Year</th>
-                <th className="text-right p-3 font-medium text-muted-foreground">Amount Deducted</th>
-                <th className="text-right p-3 font-medium text-muted-foreground">Total Deducted</th>
-                <th className="text-center p-3 font-medium text-muted-foreground">Payout Status</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Payout Reference Month</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Month</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">Running Balance</th>
+                <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Transaction Date</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Reference</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Created At</th>
-                <th className="text-center p-3 font-medium text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
               {incentiveLedger.map((entry) => {
-                const paidOut = entry.paid_out === true || String(entry.paid_out).toLowerCase() === "true";
                 return (
                   <tr key={entry.ledger_id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                     <td className="p-3 font-mono text-foreground">{entry.ledger_id}</td>
@@ -752,28 +828,24 @@ export default function EmployeesPage() {
                       <div className="font-medium text-foreground">{entry.employee_name || "-"}</div>
                       <div className="text-xs text-muted-foreground">{entry.employee_id}</div>
                     </td>
-                    <td className="p-3 text-right text-foreground">{entry.month}</td>
-                    <td className="p-3 text-right text-foreground">{entry.year}</td>
-                    <td className="p-3 text-right font-mono text-foreground">{formatCurrency(Number(entry.amount_deducted || 0))}</td>
-                    <td className="p-3 text-right font-mono text-foreground font-semibold">{formatCurrency(Number(entry.total_deducted || 0))}</td>
+                    <td className="p-3 text-foreground">{`${String(entry.month).padStart(2, "0")}/${entry.year}`}</td>
+                    <td className="p-3 text-foreground capitalize">{entry.entry_type}</td>
+                    <td className="p-3 text-right font-mono text-foreground">{formatCurrency(Number(entry.amount || 0))}</td>
+                    <td className="p-3 text-right font-mono text-foreground font-semibold">{formatCurrency(Number(entry.running_balance || 0))}</td>
                     <td className="p-3 text-center">
-                      <Badge className={paidOut ? "bg-success/10 text-success border-0" : "bg-warning/10 text-warning border-0"}>
-                        {paidOut ? "Paid Out" : "Not Paid"}
+                      <Badge className={entry.status === "paid" ? "bg-success/10 text-success border-0" : entry.status === "partially_paid" ? "bg-warning/10 text-warning border-0" : "bg-muted text-foreground border-0"}>
+                        {entry.status.replace("_", " ")}
                       </Badge>
                     </td>
-                    <td className="p-3 text-foreground">{entry.payout_reference_month || "-"}</td>
+                    <td className="p-3 text-foreground">{entry.transaction_date || "-"}</td>
+                    <td className="p-3 text-foreground">{entry.reference || "-"}</td>
                     <td className="p-3 text-muted-foreground">{entry.created_at ? new Date(entry.created_at).toLocaleString() : "-"}</td>
-                    <td className="p-3 text-center">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openLedgerEdit(entry)}>
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </td>
                   </tr>
                 );
               })}
               {!ledgerLoading && incentiveLedger.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-6 text-center text-muted-foreground">No incentive ledger entries found</td>
+                  <td colSpan={9} className="p-6 text-center text-muted-foreground">No incentive ledger entries found</td>
                 </tr>
               )}
             </tbody>
@@ -1188,53 +1260,65 @@ export default function EmployeesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={ledgerEditOpen}
-        onOpenChange={(open) => {
-          setLedgerEditOpen(open);
-          if (!open) setEditingLedger(null);
-        }}
-      >
+      <Dialog open={payoutOpen} onOpenChange={setPayoutOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Incentive Ledger Entry</DialogTitle>
+            <DialogTitle>Record Incentive Payout</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleLedgerSave} className="space-y-4">
             <div className="space-y-2">
-              <Label>Amount Deducted</Label>
+              <Label>Employee</Label>
+              <select
+                value={payoutEmployeeId}
+                onChange={(e) => setPayoutEmployeeId(e.target.value)}
+                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              >
+                <option value="">Select employee</option>
+                {payoutEmployeeOptions.map((item) => (
+                  <option key={item.employee.employee_id} value={item.employee.employee_id}>
+                    {`${item.employee.first_name} ${item.employee.last_name} (${item.employee.employee_id}) - ${formatCurrency(item.balance)}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Payout Amount</Label>
               <Input
                 type="number"
                 step="0.01"
-                value={ledgerAmount}
-                onChange={(e) => setLedgerAmount(e.target.value)}
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Payout Reference Month (YYYY-MM)</Label>
+              <Label>Payout Date</Label>
               <Input
-                value={ledgerPayoutReferenceMonth}
-                onChange={(e) => setLedgerPayoutReferenceMonth(e.target.value)}
-                placeholder="2026-03"
+                type="date"
+                value={payoutDate}
+                onChange={(e) => setPayoutDate(e.target.value)}
+                required
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="ledger-paid-out"
-                checked={ledgerPaidOut}
-                onCheckedChange={(checked) => setLedgerPaidOut(checked === true)}
+            <div className="space-y-2">
+              <Label>Reference</Label>
+              <Input
+                value={payoutReference}
+                onChange={(e) => setPayoutReference(e.target.value)}
+                placeholder="e.g. Mar settlement"
               />
-              <Label htmlFor="ledger-paid-out" className="cursor-pointer">Mark as paid out</Label>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setLedgerEditOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setPayoutOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={ledgerSaving}>
-                {ledgerSaving ? "Saving..." : "Save"}
+                {ledgerSaving ? "Saving..." : "Record Payout"}
               </Button>
             </div>
           </form>

@@ -76,10 +76,12 @@ export interface IncentiveLedgerEntry {
   employee_name?: string;
   month: number;
   year: number;
-  amount_deducted: number;
-  total_deducted: number;
-  paid_out: boolean;
-  payout_reference_month: string;
+  entry_type: "deduction" | "payout";
+  amount: number;
+  running_balance: number;
+  status: "not_paid" | "partially_paid" | "paid";
+  reference: string;
+  transaction_date: string;
   created_at: string;
 }
 
@@ -238,12 +240,14 @@ export const api = {
   getIncentiveLedger: () =>
     apiRequest<{ ledger: IncentiveLedgerEntry[] }>("/payroll/incentive-ledger"),
 
-  updateIncentiveLedger: (
-    id: string,
-    payload: Partial<Pick<IncentiveLedgerEntry, "amount_deducted" | "paid_out" | "payout_reference_month">>
-  ) =>
-    apiRequest<{ ledger: IncentiveLedgerEntry }>(`/payroll/incentive-ledger/${id}`, {
-      method: "PATCH",
+  createIncentivePayout: (payload: {
+    employee_id: string;
+    payout_amount: number;
+    payout_date: string;
+    reference?: string;
+  }) =>
+    apiRequest<{ ledger: IncentiveLedgerEntry }>("/payroll/incentive-ledger/payout", {
+      method: "POST",
       body: JSON.stringify(payload),
     }),
 

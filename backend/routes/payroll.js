@@ -1,7 +1,7 @@
 const express = require("express");
 const db = require("../services/db");
 const { SHEETS } = require("../utils/schema");
-const { nextId, nowIso, toBoolean } = require("../utils/helpers");
+const { nextId, nowIso } = require("../utils/helpers");
 const { calculateSalary, roundCurrency } = require("../services/salaryEngine");
 const { sendEmail, buildPayslipEmail } = require("../services/emailService");
 const { generatePayslipPDF } = require("../services/pdfService");
@@ -9,6 +9,43 @@ const { authenticate, authorize } = require("../middleware/auth");
 
 const router = express.Router();
 router.use(authenticate);
+
+function ledgerSortValue(row) {
+  return Number(row.year) * 12 + Number(row.month);
+}
+
+function normalizeLedgerRow(row) {
+  const entryType = String(row.entry_type || "deduction").toLowerCase();
+  const amount = roundCurrency(Number(row.amount || 0));
+  const runningBalance = roundCurrency(Number(row.running_balance || 0));
+  const status = String(row.status || (runningBalance <= 0 ? "paid" : "not_paid"));
+  return {
+    ...row,
+    entry_type: entryType,
+    amount,
+    running_balance: runningBalance,
+    status,
+    reference: String(row.reference || ""),
+    transaction_date: String(row.transaction_date || ""),
+  };
+}
+
+function buildLedgerSnapshot(ledgerRows, employeeId) {
+  return ledgerRows
+    .filter((entry) => String(entry.employee_id) === String(employeeId))
+    .map(normalizeLedgerRow)
+    .sort((a, b) => {
+      const diff = ledgerSortValue(a) - ledgerSortValue(b);
+      if (diff !== 0) return diff;
+      return Number(a.ledger_id) - Number(b.ledger_id);
+    });
+}
+
+function getEmployeeLedgerBalance(ledgerRows, employeeId) {
+  const rows = buildLedgerSnapshot(ledgerRows, employeeId);
+  if (rows.length === 0) return 0;
+  return roundCurrency(Number(rows[rows.length - 1].running_balance || 0));
+}
 
 function canAccessRecord(user, record, users, employees) {
   if (user.role === "admin") return true;
@@ -79,7 +116,7 @@ router.get("/", async (req, res) => {
  * POST /payroll/generate
  * Body: { month, year }
  * Generates payroll from permanent attendance records.
- * Implements incentive ledger and 6-month payout rule.
+ * Creates monthly payroll and incentive deduction ledger transactions.
  */
 router.post("/generate", authorize("admin"), async (req, res) => {
   try {
@@ -146,18 +183,15 @@ router.post("/generate", authorize("admin"), async (req, res) => {
       );
       if (duplicate) continue;
 
-      // Check for duplicate ledger entry
+      // Check for duplicate deduction ledger entry
       const existingLedgerEntry = incentiveLedger.find(
         (entry) =>
           String(entry.employee_id) === String(emp.employee_id) &&
           Number(entry.month) === monthNum &&
-          Number(entry.year) === yearNum
+          Number(entry.year) === yearNum &&
+          String(entry.entry_type || "deduction").toLowerCase() === "deduction"
       );
 
-      // Incentive payout is now admin-controlled via ledger edit dialog
-      // No automatic 6-month payout logic
-
-      // Calculate salary
       const effectiveBasicSalary = resolveScheduledBasic(
         emp.employee_id,
         monthNum,
@@ -201,24 +235,22 @@ router.post("/generate", authorize("admin"), async (req, res) => {
 
       generated.push(payrollRecord);
 
-      // Create ledger entry if not exists
+      // Create deduction ledger transaction if not exists
       if (!existingLedgerEntry && breakdown.incentive_deduction > 0) {
-        // Calculate cumulative total_deducted for this employee
-        const previousTotal = incentiveLedger
-          .filter((entry) => String(entry.employee_id) === String(emp.employee_id))
-          .reduce((sum, entry) => sum + Number(entry.amount_deducted || 0), 0);
-        
-        const newTotalDeducted = roundCurrency(previousTotal + breakdown.incentive_deduction);
+        const previousBalance = getEmployeeLedgerBalance([...incentiveLedger, ...ledgerEntries], emp.employee_id);
+        const runningBalance = roundCurrency(previousBalance + breakdown.incentive_deduction);
 
         const ledgerEntry = {
           ledger_id: nextId([...incentiveLedger, ...ledgerEntries].map((e) => ({ id: e.ledger_id }))),
           employee_id: emp.employee_id,
           month: monthNum,
           year: yearNum,
-          amount_deducted: breakdown.incentive_deduction,
-          total_deducted: newTotalDeducted,
-          paid_out: false,
-          payout_reference_month: "",
+          entry_type: "deduction",
+          amount: roundCurrency(breakdown.incentive_deduction),
+          running_balance: runningBalance,
+          status: runningBalance > 0 ? "not_paid" : "paid",
+          reference: `${monthNum}-${yearNum} incentive deduction`,
+          transaction_date: `${String(yearNum).padStart(4, "0")}-${String(monthNum).padStart(2, "0")}-01`,
           created_at: nowIso(),
         };
         ledgerEntries.push(ledgerEntry);
@@ -258,12 +290,12 @@ router.get("/incentive-ledger", authorize("admin"), async (_req, res) => {
 
     const ledger = [...ledgerRows]
       .map((row) => ({
-        ...row,
+        ...normalizeLedgerRow(row),
         employee_name: byEmployeeId.get(String(row.employee_id)) || "",
       }))
       .sort((a, b) => {
-        const dateA = Number(a.year) * 12 + Number(a.month);
-        const dateB = Number(b.year) * 12 + Number(b.month);
+        const dateA = ledgerSortValue(a);
+        const dateB = ledgerSortValue(b);
         if (dateA !== dateB) return dateB - dateA;
         return Number(b.ledger_id) - Number(a.ledger_id);
       });
@@ -274,53 +306,57 @@ router.get("/incentive-ledger", authorize("admin"), async (_req, res) => {
   }
 });
 
-router.patch("/incentive-ledger/:id", authorize("admin"), async (req, res) => {
+router.post("/incentive-ledger/payout", authorize("admin"), async (req, res) => {
   try {
     const ledgerRows = await db.getAll(SHEETS.INCENTIVE_LEDGER);
-    const current = ledgerRows.find((row) => String(row.ledger_id) === String(req.params.id));
+    const employees = await db.getAll(SHEETS.EMPLOYEES);
+    const { employee_id, payout_amount, payout_date, reference } = req.body || {};
 
-    if (!current) {
-      return res.status(404).json({ message: "Ledger entry not found" });
+    if (!employee_id) {
+      return res.status(400).json({ message: "employee_id is required" });
     }
 
-    const nextAmount =
-      req.body?.amount_deducted === undefined
-        ? Number(current.amount_deducted || 0)
-        : Number(req.body.amount_deducted);
-
-    if (!Number.isFinite(nextAmount)) {
-      return res.status(400).json({ message: "amount_deducted must be a valid number" });
+    const employee = employees.find((row) => String(row.employee_id) === String(employee_id));
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
     }
 
-    // Recalculate total_deducted if amount_deducted changed
-    let newTotalDeducted = Number(current.total_deducted || 0);
-    if (nextAmount !== Number(current.amount_deducted || 0)) {
-      const employeeLedger = ledgerRows.filter(
-        (entry) => String(entry.employee_id) === String(current.employee_id)
-      );
-      const previousTotal = employeeLedger
-        .filter((entry) => String(entry.ledger_id) !== String(req.params.id))
-        .reduce((sum, entry) => sum + Number(entry.amount_deducted || 0), 0);
-      newTotalDeducted = roundCurrency(previousTotal + nextAmount);
+    const amount = Number(payout_amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ message: "payout_amount must be a valid positive number" });
     }
 
-    const updated = await db.updateById(SHEETS.INCENTIVE_LEDGER, req.params.id, {
-      ...current,
-      amount_deducted: nextAmount,
-      total_deducted: newTotalDeducted,
-      paid_out:
-        req.body?.paid_out === undefined
-          ? toBoolean(current.paid_out)
-          : toBoolean(req.body.paid_out),
-      payout_reference_month:
-        req.body?.payout_reference_month === undefined
-          ? String(current.payout_reference_month || "")
-          : String(req.body.payout_reference_month || ""),
-    });
+    const balanceBeforePayout = getEmployeeLedgerBalance(ledgerRows, employee_id);
+    if (balanceBeforePayout <= 0) {
+      return res.status(400).json({ message: "No unpaid incentive balance available for payout" });
+    }
 
-    return res.json({ ledger: updated });
+    if (amount > balanceBeforePayout) {
+      return res.status(400).json({ message: "payout_amount cannot exceed current unpaid balance" });
+    }
+
+    const transactionDate = String(payout_date || "").trim() || new Date().toISOString().slice(0, 10);
+    const [payoutYear, payoutMonth] = transactionDate.split("-").map(Number);
+    const runningBalance = roundCurrency(balanceBeforePayout - amount);
+    const ledgerEntry = {
+      ledger_id: nextId(ledgerRows.map((e) => ({ id: e.ledger_id }))),
+      employee_id: String(employee_id),
+      month: Number.isFinite(payoutMonth) ? payoutMonth : new Date().getMonth() + 1,
+      year: Number.isFinite(payoutYear) ? payoutYear : new Date().getFullYear(),
+      entry_type: "payout",
+      amount: roundCurrency(amount),
+      running_balance: runningBalance,
+      status: runningBalance <= 0 ? "paid" : "partially_paid",
+      reference: String(reference || "").trim(),
+      transaction_date: transactionDate,
+      created_at: nowIso(),
+    };
+
+    await db.append(SHEETS.INCENTIVE_LEDGER, ledgerEntry);
+
+    return res.status(201).json({ ledger: normalizeLedgerRow(ledgerEntry) });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update ledger entry" });
+    return res.status(500).json({ message: error.message || "Failed to create payout entry" });
   }
 });
 
@@ -473,8 +509,7 @@ router.post("/:id/send-payslip", authorize("admin"), async (req, res) => {
 
 /**
  * POST /payroll/incentive-ledger/recalculate-totals
- * Recalculates total_deducted for all existing ledger entries
- * This is a one-time migration endpoint to fix existing data
+ * Recalculates running balances and statuses for all ledger entries.
  */
 router.post("/incentive-ledger/recalculate-totals", authorize("admin"), async (req, res) => {
   try {
@@ -490,41 +525,43 @@ router.post("/incentive-ledger/recalculate-totals", authorize("admin"), async (r
       byEmployee.get(empId).push(entry);
     }
 
-    // Sort each employee's entries by year/month and recalculate cumulative totals
+    // Sort each employee's entries by year/month and recalculate running balances
     const updates = [];
-    for (const [empId, entries] of byEmployee.entries()) {
-      // Sort by year and month ascending
+    for (const [, entries] of byEmployee.entries()) {
       entries.sort((a, b) => {
-        const dateA = Number(a.year) * 12 + Number(a.month);
-        const dateB = Number(b.year) * 12 + Number(b.month);
-        return dateA - dateB;
+        const diff = ledgerSortValue(a) - ledgerSortValue(b);
+        if (diff !== 0) return diff;
+        return Number(a.ledger_id) - Number(b.ledger_id);
       });
 
-      let runningTotal = 0;
+      let runningBalance = 0;
       for (const entry of entries) {
-        runningTotal += Number(entry.amount_deducted || 0);
-        const newTotalDeducted = roundCurrency(runningTotal);
+        const normalized = normalizeLedgerRow(entry);
+        runningBalance = normalized.entry_type === "payout"
+          ? roundCurrency(runningBalance - normalized.amount)
+          : roundCurrency(runningBalance + normalized.amount);
 
         updates.push({
           ledger_id: entry.ledger_id,
-          total_deducted: newTotalDeducted,
+          running_balance: runningBalance,
+          status: runningBalance <= 0 ? "paid" : normalized.entry_type === "payout" ? "partially_paid" : "not_paid",
         });
       }
     }
 
-    // Apply updates
     for (const update of updates) {
       const current = ledgerRows.find((e) => String(e.ledger_id) === String(update.ledger_id));
       if (current) {
         await db.updateById(SHEETS.INCENTIVE_LEDGER, update.ledger_id, {
           ...current,
-          total_deducted: update.total_deducted,
+          running_balance: update.running_balance,
+          status: update.status,
         });
       }
     }
 
     return res.json({
-      message: "Successfully recalculated total_deducted for all ledger entries",
+      message: "Successfully recalculated running balances for all ledger entries",
       updatedCount: updates.length,
     });
   } catch (error) {
