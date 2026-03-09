@@ -349,26 +349,100 @@ export default function SalarySchedule() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-start">Start Month (YYYY-MM)</Label>
-              <Input
-                id="edit-start"
-                type="month"
-                value={editForm.start_month}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, start_month: e.target.value })
-                }
-              />
+              <Label htmlFor="edit-start">Start Month</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={editForm.start_month.split('-')[1] || ''}
+                  onValueChange={(month) => {
+                    const year = editForm.start_month.split('-')[0] || new Date().getFullYear().toString();
+                    setEditForm({ ...editForm, start_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="01">January</SelectItem>
+                    <SelectItem value="02">February</SelectItem>
+                    <SelectItem value="03">March</SelectItem>
+                    <SelectItem value="04">April</SelectItem>
+                    <SelectItem value="05">May</SelectItem>
+                    <SelectItem value="06">June</SelectItem>
+                    <SelectItem value="07">July</SelectItem>
+                    <SelectItem value="08">August</SelectItem>
+                    <SelectItem value="09">September</SelectItem>
+                    <SelectItem value="10">October</SelectItem>
+                    <SelectItem value="11">November</SelectItem>
+                    <SelectItem value="12">December</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={editForm.start_month.split('-')[0] || ''}
+                  onValueChange={(year) => {
+                    const month = editForm.start_month.split('-')[1] || '01';
+                    setEditForm({ ...editForm, start_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-end">End Month (YYYY-MM)</Label>
-              <Input
-                id="edit-end"
-                type="month"
-                value={editForm.end_month}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, end_month: e.target.value })
-                }
-              />
+              <Label htmlFor="edit-end">End Month</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={editForm.end_month.split('-')[1] || ''}
+                  onValueChange={(month) => {
+                    const year = editForm.end_month.split('-')[0] || new Date().getFullYear().toString();
+                    setEditForm({ ...editForm, end_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="01">January</SelectItem>
+                    <SelectItem value="02">February</SelectItem>
+                    <SelectItem value="03">March</SelectItem>
+                    <SelectItem value="04">April</SelectItem>
+                    <SelectItem value="05">May</SelectItem>
+                    <SelectItem value="06">June</SelectItem>
+                    <SelectItem value="07">July</SelectItem>
+                    <SelectItem value="08">August</SelectItem>
+                    <SelectItem value="09">September</SelectItem>
+                    <SelectItem value="10">October</SelectItem>
+                    <SelectItem value="11">November</SelectItem>
+                    <SelectItem value="12">December</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={editForm.end_month.split('-')[0] || ''}
+                  onValueChange={(year) => {
+                    const month = editForm.end_month.split('-')[1] || '01';
+                    setEditForm({ ...editForm, end_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-salary">Salary</Label>
@@ -439,26 +513,100 @@ export default function SalarySchedule() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-start">Start Month (YYYY-MM)</Label>
-              <Input
-                id="create-start"
-                type="month"
-                value={editForm.start_month}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, start_month: e.target.value })
-                }
-              />
+              <Label htmlFor="create-start">Start Month</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={editForm.start_month.split('-')[1] || ''}
+                  onValueChange={(month) => {
+                    const year = editForm.start_month.split('-')[0] || new Date().getFullYear().toString();
+                    setEditForm({ ...editForm, start_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="01">January</SelectItem>
+                    <SelectItem value="02">February</SelectItem>
+                    <SelectItem value="03">March</SelectItem>
+                    <SelectItem value="04">April</SelectItem>
+                    <SelectItem value="05">May</SelectItem>
+                    <SelectItem value="06">June</SelectItem>
+                    <SelectItem value="07">July</SelectItem>
+                    <SelectItem value="08">August</SelectItem>
+                    <SelectItem value="09">September</SelectItem>
+                    <SelectItem value="10">October</SelectItem>
+                    <SelectItem value="11">November</SelectItem>
+                    <SelectItem value="12">December</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={editForm.start_month.split('-')[0] || ''}
+                  onValueChange={(year) => {
+                    const month = editForm.start_month.split('-')[1] || '01';
+                    setEditForm({ ...editForm, start_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-end">End Month (YYYY-MM)</Label>
-              <Input
-                id="create-end"
-                type="month"
-                value={editForm.end_month}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, end_month: e.target.value })
-                }
-              />
+              <Label htmlFor="create-end">End Month</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={editForm.end_month.split('-')[1] || ''}
+                  onValueChange={(month) => {
+                    const year = editForm.end_month.split('-')[0] || new Date().getFullYear().toString();
+                    setEditForm({ ...editForm, end_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="01">January</SelectItem>
+                    <SelectItem value="02">February</SelectItem>
+                    <SelectItem value="03">March</SelectItem>
+                    <SelectItem value="04">April</SelectItem>
+                    <SelectItem value="05">May</SelectItem>
+                    <SelectItem value="06">June</SelectItem>
+                    <SelectItem value="07">July</SelectItem>
+                    <SelectItem value="08">August</SelectItem>
+                    <SelectItem value="09">September</SelectItem>
+                    <SelectItem value="10">October</SelectItem>
+                    <SelectItem value="11">November</SelectItem>
+                    <SelectItem value="12">December</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={editForm.end_month.split('-')[0] || ''}
+                  onValueChange={(year) => {
+                    const month = editForm.end_month.split('-')[1] || '01';
+                    setEditForm({ ...editForm, end_month: `${year}-${month}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="create-salary">Salary</Label>

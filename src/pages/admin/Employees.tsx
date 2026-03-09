@@ -19,7 +19,7 @@ export default function EmployeesPage() {
   const [list, setList] = useState<Employee[]>([]);
   const [incentiveLedger, setIncentiveLedger] = useState<IncentiveLedgerEntry[]>([]);
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
@@ -87,9 +87,35 @@ export default function EmployeesPage() {
     }
   };
 
+  const filteredLedger = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return incentiveLedger;
+
+    const normalizedQuery = query.replace(/\s+/g, "");
+    const matchingEmployeeIds = new Set<string>();
+
+    for (const employee of list) {
+      const firstName = String(employee.first_name || "").toLowerCase();
+      const lastName = String(employee.last_name || "").toLowerCase();
+      const fullName = `${firstName} ${lastName}`.trim();
+      const fullNameNoSpace = `${firstName}${lastName}`;
+      const employeeId = String(employee.employee_id || "").toLowerCase();
+
+      if (
+        fullName.includes(query) ||
+        fullNameNoSpace.includes(normalizedQuery) ||
+        employeeId.includes(normalizedQuery)
+      ) {
+        matchingEmployeeIds.add(employee.employee_id);
+      }
+    }
+
+    return incentiveLedger.filter((entry) => matchingEmployeeIds.has(entry.employee_id));
+  }, [incentiveLedger, search, list]);
+
   const ledgerSummary = useMemo(() => {
     const byEmployee = new Map<string, IncentiveLedgerEntry[]>();
-    for (const entry of incentiveLedger) {
+    for (const entry of filteredLedger) {
       const rows = byEmployee.get(entry.employee_id) || [];
       rows.push(entry);
       byEmployee.set(entry.employee_id, rows);
@@ -123,7 +149,7 @@ export default function EmployeesPage() {
       totalPaidOut,
       latestPayoutDate,
     };
-  }, [incentiveLedger]);
+  }, [filteredLedger]);
 
   const payoutEmployeeOptions = useMemo(() => {
     const balances = new Map<string, number>();
@@ -820,7 +846,7 @@ export default function EmployeesPage() {
               </tr>
             </thead>
             <tbody>
-              {incentiveLedger.map((entry) => {
+              {filteredLedger.map((entry) => {
                 return (
                   <tr key={entry.ledger_id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                     <td className="p-3 font-mono text-foreground">{entry.ledger_id}</td>
@@ -843,7 +869,7 @@ export default function EmployeesPage() {
                   </tr>
                 );
               })}
-              {!ledgerLoading && incentiveLedger.length === 0 && (
+              {!ledgerLoading && filteredLedger.length === 0 && (
                 <tr>
                   <td colSpan={9} className="p-6 text-center text-muted-foreground">No incentive ledger entries found</td>
                 </tr>
