@@ -3,9 +3,10 @@ const db = require("../services/db");
 const { SHEETS } = require("../utils/schema");
 const { nextId, nowIso } = require("../utils/helpers");
 const { authenticate, authorize } = require("../middleware/auth");
+const { maskSalaries } = require("../middleware/maskSalaries");
 
 const router = express.Router();
-router.use(authenticate);
+router.use(authenticate, maskSalaries);
 
 /**
  * GET /salary-schedule

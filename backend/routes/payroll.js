@@ -6,9 +6,10 @@ const { calculateSalary, roundCurrency } = require("../services/salaryEngine");
 const { sendEmail, buildPayslipEmail } = require("../services/emailService");
 const { generatePayslipPDF } = require("../services/pdfService");
 const { authenticate, authorize } = require("../middleware/auth");
+const { maskSalaries } = require("../middleware/maskSalaries");
 
 const router = express.Router();
-router.use(authenticate);
+router.use(authenticate, maskSalaries);
 
 function ledgerSortValue(row) {
   return Number(row.year) * 12 + Number(row.month);

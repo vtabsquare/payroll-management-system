@@ -3,9 +3,10 @@ const db = require("../services/db");
 const { SHEETS } = require("../utils/schema");
 const { nextId } = require("../utils/helpers");
 const { authenticate, authorize } = require("../middleware/auth");
+const { maskSalaries } = require("../middleware/maskSalaries");
 
 const router = express.Router();
-router.use(authenticate, authorize("admin"));
+router.use(authenticate, authorize("admin"), maskSalaries);
 
 function monthKeyToNumber(monthKey) {
   if (!/^\d{4}-\d{2}$/.test(String(monthKey || ""))) return Number.NaN;

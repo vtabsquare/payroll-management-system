@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   employee_id?: string;
+  can_view_salaries?: boolean;
 }
 
 export interface UserRecord {
@@ -14,6 +15,7 @@ export interface UserRecord {
   email: string;
   role: UserRole;
   active: boolean;
+  can_view_salaries?: boolean;
   employee_id?: string;
   last_login?: string;
   login_attempt?: number;
@@ -161,7 +163,12 @@ export const api = {
     apiRequest<{ employees: Employee[] }>(`/employees${search ? `?q=${encodeURIComponent(search)}` : ""}`),
 
   addEmployee: (payload: Partial<Employee>) =>
-    apiRequest<{ employee: Employee }>("/employees", {
+    apiRequest<{ 
+      employee: Employee; 
+      userCreated?: boolean; 
+      temporaryPassword?: string; 
+      userCreationError?: string;
+    }>("/employees", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

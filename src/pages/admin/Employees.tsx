@@ -420,7 +420,25 @@ export default function EmployeesPage() {
       } else {
         const response = await api.addEmployee(data);
         setList((prev) => [...prev, response.employee]);
-        toast({ title: "Employee added" });
+        
+        if (response.userCreated && response.temporaryPassword) {
+          toast({
+            title: "Employee & User Account Created",
+            description: `Employee added successfully. Login credentials:\nEmail: ${response.employee.company_email}\nPassword: ${response.temporaryPassword}`,
+            duration: 10000,
+          });
+        } else if (response.userCreationError) {
+          toast({
+            title: "Employee added",
+            description: `Employee created but user account creation failed: ${response.userCreationError}`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Employee added",
+            description: "User account already exists for this email",
+          });
+        }
       }
       setModalOpen(false);
     } catch (error) {
@@ -683,6 +701,7 @@ export default function EmployeesPage() {
                   <th className="text-right p-4 font-medium text-muted-foreground">Other Allowance</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Special Pay</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Incentive</th>
+                  <th className="text-right p-4 font-medium text-muted-foreground">PF Amount</th>
                   <th className="text-center p-4 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
@@ -727,6 +746,9 @@ export default function EmployeesPage() {
                       <td className="p-4 text-right font-mono text-foreground">
                         {formatCurrency(Number(emp.incentive) || 0)}
                       </td>
+                      <td className="p-4 text-right font-mono text-foreground">
+                        {formatCurrency(Number(emp.pf_amount) || 0)}
+                      </td>
                       <td className="p-4 text-center">
                         <div className="flex justify-center gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(emp)}>
@@ -741,7 +763,7 @@ export default function EmployeesPage() {
                   ))}
                   {!loading && paginated.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="p-6 text-center text-muted-foreground">No employees found</td>
+                      <td colSpan={8} className="p-6 text-center text-muted-foreground">No employees found</td>
                     </tr>
                   )}
                 </AnimatePresence>
@@ -1232,6 +1254,17 @@ export default function EmployeesPage() {
                         placeholder="0"
                       />
                       <p className="text-xs text-muted-foreground">Amount deducted monthly from basic salary</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">PF Amount (₹)</Label>
+                      <Input 
+                        value={formData.pf_amount || ""}
+                        onChange={(e) => handleInputChange("pf_amount", e.target.value)}
+                        type="number" 
+                        className="h-11" 
+                        placeholder="0"
+                      />
+                      <p className="text-xs text-muted-foreground">Provident Fund contribution amount</p>
                     </div>
                   </div>
                 </motion.div>

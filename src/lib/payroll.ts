@@ -13,6 +13,7 @@ export interface Employee {
   aadhaar_number?: string;
   pan_number?: string;
   pf_number?: string;
+  pf_amount?: number;
   bank_name: string;
   account_number: string;
   ifsc_code: string;

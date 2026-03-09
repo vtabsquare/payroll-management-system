@@ -16,6 +16,7 @@ function signToken(user) {
       email: user.email,
       role: user.role,
       employee_id: user.employee_id || "",
+      can_view_salaries: toBoolean(user.can_view_salaries),
     },
     process.env.JWT_SECRET || "dev_secret_change_me",
     { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
@@ -99,6 +100,7 @@ router.post("/login", async (req, res) => {
         email: user.email,
         role: user.role,
         employee_id: user.employee_id || "",
+        can_view_salaries: toBoolean(user.can_view_salaries),
       },
     });
   } catch (error) {

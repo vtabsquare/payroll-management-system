@@ -38,6 +38,7 @@ router.get("/", async (_req, res) => {
         email: user.email,
         role: user.role,
         active: toBoolean(user.is_active),
+        can_view_salaries: toBoolean(user.can_view_salaries),
         employee_id: user.employee_id || "",
         last_login: user.last_login || "",
         login_attempt: Number(user.login_attempt) || 0,
@@ -89,6 +90,7 @@ router.post("/", async (req, res) => {
       email: normalizedEmail,
       role: normalizedRole,
       is_active: true,
+      can_view_salaries: normalizedRole === "admin",
       password_hash: await bcrypt.hash(password, 10),
       created_at: nowIso(),
       last_login: "",
@@ -102,6 +104,7 @@ router.post("/", async (req, res) => {
         email: user.email,
         role: user.role,
         active: user.is_active,
+        can_view_salaries: toBoolean(user.can_view_salaries),
         employee_id: user.employee_id,
       },
     });
@@ -141,6 +144,7 @@ router.patch("/:id", async (req, res) => {
       ...current,
       role: nextRole,
       is_active: req.body.active === undefined ? current.is_active : toBoolean(req.body.active),
+      can_view_salaries: req.body.can_view_salaries === undefined ? current.can_view_salaries : toBoolean(req.body.can_view_salaries),
       employee_id: nextEmployeeId,
       // last_login is set during login
     };
@@ -153,6 +157,7 @@ router.patch("/:id", async (req, res) => {
         email: user.email,
         role: user.role,
         active: toBoolean(user.is_active),
+        can_view_salaries: toBoolean(user.can_view_salaries),
         employee_id: user.employee_id || "",
       },
     });
@@ -231,6 +236,7 @@ router.post("/:id/unlock", async (req, res) => {
         email: user.email,
         role: user.role,
         active: toBoolean(user.is_active),
+        can_view_salaries: toBoolean(user.can_view_salaries),
         employee_id: user.employee_id || "",
         last_login: user.last_login || "",
         login_attempt: 0,

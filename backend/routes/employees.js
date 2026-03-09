@@ -1,11 +1,13 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const db = require("../services/db");
 const { SHEETS } = require("../utils/schema");
-const { nextEmpId, nowIso } = require("../utils/helpers");
+const { nextEmpId, nextId, nowIso } = require("../utils/helpers");
 const { authenticate, authorize } = require("../middleware/auth");
+const { maskSalaries } = require("../middleware/maskSalaries");
 
 const router = express.Router();
-router.use(authenticate, authorize("admin"));
+router.use(authenticate, authorize("admin"), maskSalaries);
 
 function validateEmployee(body) {
   const required = ["first_name", "last_name", "company_email", "designation"];
@@ -51,11 +53,13 @@ router.post("/", async (req, res) => {
 
     const rows = await db.getAll(SHEETS.EMPLOYEES);
     const employeeId = nextEmpId(rows, "employee_id");
+    const companyEmail = String(req.body.company_email || "").trim().toLowerCase();
+    
     const employee = {
       employee_id: employeeId,
       first_name: String(req.body.first_name || "").trim(),
       last_name: String(req.body.last_name || "").trim(),
-      company_email: String(req.body.company_email || "").trim().toLowerCase(),
+      company_email: companyEmail,
       phone: String(req.body.phone || "").trim(),
       designation: String(req.body.designation || "").trim(),
       employee_type: String(req.body.employee_type || "").trim(),
@@ -74,7 +78,44 @@ router.post("/", async (req, res) => {
     };
 
     await db.append(SHEETS.EMPLOYEES, employee);
-    return res.status(201).json({ employee });
+
+    // Automatically create user account for the employee
+    let userCreated = false;
+    let temporaryPassword = null;
+    let userCreationError = null;
+
+    try {
+      const users = await db.getAll(SHEETS.USERS);
+      const userExists = users.some((user) => String(user.email).toLowerCase() === companyEmail);
+
+      if (!userExists) {
+        temporaryPassword = `Emp@${Math.random().toString(36).slice(2, 10)}`;
+        const user = {
+          user_id: nextId(users.map((item) => ({ id: item.user_id }))),
+          employee_id: employeeId,
+          email: companyEmail,
+          role: "employee",
+          is_active: true,
+          can_view_salaries: false,
+          password_hash: await bcrypt.hash(temporaryPassword, 10),
+          created_at: nowIso(),
+          last_login: "",
+          login_attempt: 0,
+        };
+
+        await db.append(SHEETS.USERS, user);
+        userCreated = true;
+      }
+    } catch (userError) {
+      userCreationError = userError.message || "Failed to create user account";
+    }
+
+    return res.status(201).json({
+      employee,
+      userCreated,
+      temporaryPassword,
+      userCreationError,
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to add employee" });
   }
