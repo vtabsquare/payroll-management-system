@@ -59,10 +59,21 @@ export function calculateSalary(input: SalaryInput): SalaryBreakdown {
   };
 }
 
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | string): string {
+  // If the value is already a masked string, return it as-is
+  if (typeof amount === 'string' && amount.includes('*')) {
+    return amount;
+  }
+  
+  // Convert to number and check for NaN
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(numAmount)) {
+    return '₹*****';
+  }
+  
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(numAmount);
 }
