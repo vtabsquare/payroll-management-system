@@ -98,7 +98,10 @@ export default function UserManagement() {
       setUsers((prev) => prev.map((item) => (item.id === user.id ? response.user : item)));
       toast({ 
         title: "Salary visibility updated",
-        description: response.user.can_view_salaries ? "User can now view salaries" : "User cannot view salaries"
+        description: response.user.can_view_salaries 
+          ? "User can now view salaries. They must log out and log back in for changes to take effect." 
+          : "User cannot view salaries. They must log out and log back in for changes to take effect.",
+        duration: 8000,
       });
     } catch (error) {
       toast({

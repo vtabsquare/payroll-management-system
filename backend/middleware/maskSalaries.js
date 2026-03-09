@@ -1,7 +1,6 @@
 function maskCurrency(value) {
   if (value === null || value === undefined || value === "") return value;
-  const str = String(value);
-  return "₹" + "*".repeat(str.replace(/[^0-9]/g, "").length || 5);
+  return "₹*****";
 }
 
 function maskEmployeeSalaries(employee) {
