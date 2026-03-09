@@ -349,8 +349,8 @@ export default function SalarySchedule() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-start">Start Month</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <Label htmlFor="edit-start">Start Date</Label>
+              <div className="grid grid-cols-3 gap-2">
                 <Select
                   value={editForm.start_month.split('-')[1] || ''}
                   onValueChange={(month) => {
@@ -394,11 +394,31 @@ export default function SalarySchedule() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Select
+                  value={editForm.start_month.split('-')[2] || '01'}
+                  onValueChange={(day) => {
+                    const parts = editForm.start_month.split('-');
+                    const year = parts[0] || new Date().getFullYear().toString();
+                    const month = parts[1] || '01';
+                    setEditForm({ ...editForm, start_month: `${year}-${month}-${day}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString().padStart(2, '0')}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-end">End Month</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <Label htmlFor="edit-end">End Date</Label>
+              <div className="grid grid-cols-3 gap-2">
                 <Select
                   value={editForm.end_month.split('-')[1] || ''}
                   onValueChange={(month) => {
@@ -438,6 +458,26 @@ export default function SalarySchedule() {
                     {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={editForm.end_month.split('-')[2] || '01'}
+                  onValueChange={(day) => {
+                    const parts = editForm.end_month.split('-');
+                    const year = parts[0] || new Date().getFullYear().toString();
+                    const month = parts[1] || '01';
+                    setEditForm({ ...editForm, end_month: `${year}-${month}-${day}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString().padStart(2, '0')}>
+                        {day}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -513,8 +553,8 @@ export default function SalarySchedule() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-start">Start Month</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <Label htmlFor="create-start">Start Date</Label>
+              <div className="grid grid-cols-3 gap-2">
                 <Select
                   value={editForm.start_month.split('-')[1] || ''}
                   onValueChange={(month) => {
@@ -558,11 +598,31 @@ export default function SalarySchedule() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Select
+                  value={editForm.start_month.split('-')[2] || '01'}
+                  onValueChange={(day) => {
+                    const parts = editForm.start_month.split('-');
+                    const year = parts[0] || new Date().getFullYear().toString();
+                    const month = parts[1] || '01';
+                    setEditForm({ ...editForm, start_month: `${year}-${month}-${day}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString().padStart(2, '0')}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-end">End Month</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <Label htmlFor="create-end">End Date</Label>
+              <div className="grid grid-cols-3 gap-2">
                 <Select
                   value={editForm.end_month.split('-')[1] || ''}
                   onValueChange={(month) => {
@@ -602,6 +662,26 @@ export default function SalarySchedule() {
                     {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={editForm.end_month.split('-')[2] || '01'}
+                  onValueChange={(day) => {
+                    const parts = editForm.end_month.split('-');
+                    const year = parts[0] || new Date().getFullYear().toString();
+                    const month = parts[1] || '01';
+                    setEditForm({ ...editForm, end_month: `${year}-${month}-${day}` });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString().padStart(2, '0')}>
+                        {day}
                       </SelectItem>
                     ))}
                   </SelectContent>
