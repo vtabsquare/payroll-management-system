@@ -37,6 +37,31 @@ export default function EmployeesPage() {
   const [ledgerSaving, setLedgerSaving] = useState(false);
   const { toast } = useToast();
 
+  const isMaskedValue = (value: unknown) => typeof value === "string" && value.includes("*");
+
+  const toNumeric = (value: unknown): number => {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    if (typeof value === "string") {
+      if (isMaskedValue(value)) return 0;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
+  const displayCurrency = (value: unknown): string => {
+    if (isMaskedValue(value)) return String(value);
+    return formatCurrency(toNumeric(value));
+  };
+
+  const grossDisplay = (employee: Employee): string => {
+    const parts = [employee.base_salary, employee.hra, employee.other_allowance, employee.special_pay];
+    if (parts.some(isMaskedValue)) {
+      return "₹*****";
+    }
+    return formatCurrency(parts.reduce((sum, part) => sum + toNumeric(part), 0));
+  };
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return list;
@@ -132,11 +157,11 @@ export default function EmployeesPage() {
         return Number(a.ledger_id) - Number(b.ledger_id);
       });
       const latest = ordered[ordered.length - 1];
-      totalBalance += Number(latest?.running_balance || 0);
+      totalBalance += toNumeric(latest?.running_balance || 0);
 
       for (const entry of entries) {
         if (entry.entry_type === "payout") {
-          totalPaidOut += Number(entry.amount || 0);
+          totalPaidOut += toNumeric(entry.amount || 0);
           if (!latestPayoutDate || String(entry.transaction_date || "") > latestPayoutDate) {
             latestPayoutDate = String(entry.transaction_date || "");
           }
@@ -154,7 +179,7 @@ export default function EmployeesPage() {
   const payoutEmployeeOptions = useMemo(() => {
     const balances = new Map<string, number>();
     for (const entry of incentiveLedger) {
-      balances.set(entry.employee_id, Number(entry.running_balance || 0));
+      balances.set(entry.employee_id, toNumeric(entry.running_balance || 0));
     }
     return list
       .map((employee) => ({
@@ -729,25 +754,25 @@ export default function EmployeesPage() {
                         </div>
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
-                        {formatCurrency((Number(emp.base_salary) || 0) + (Number(emp.hra) || 0) + (Number(emp.other_allowance) || 0) + (Number(emp.special_pay) || 0))}
+                        {grossDisplay(emp)}
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
-                        {formatCurrency(Number(emp.base_salary) || 0)}
+                        {displayCurrency(emp.base_salary)}
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
-                        {formatCurrency(Number(emp.hra) || 0)}
+                        {displayCurrency(emp.hra)}
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
-                        {formatCurrency(Number(emp.other_allowance) || 0)}
+                        {displayCurrency(emp.other_allowance)}
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
-                        {formatCurrency(Number(emp.special_pay) || 0)}
+                        {displayCurrency(emp.special_pay)}
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
-                        {formatCurrency(Number(emp.incentive) || 0)}
+                        {displayCurrency(emp.incentive)}
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
-                        {formatCurrency(Number(emp.pf_amount) || 0)}
+                        {displayCurrency(emp.pf_amount)}
                       </td>
                       <td className="p-4 text-center">
                         <div className="flex justify-center gap-1">
@@ -878,8 +903,8 @@ export default function EmployeesPage() {
                     </td>
                     <td className="p-3 text-foreground">{`${String(entry.month).padStart(2, "0")}/${entry.year}`}</td>
                     <td className="p-3 text-foreground capitalize">{entry.entry_type}</td>
-                    <td className="p-3 text-right font-mono text-foreground">{formatCurrency(Number(entry.amount || 0))}</td>
-                    <td className="p-3 text-right font-mono text-foreground font-semibold">{formatCurrency(Number(entry.running_balance || 0))}</td>
+                    <td className="p-3 text-right font-mono text-foreground">{displayCurrency(entry.amount)}</td>
+                    <td className="p-3 text-right font-mono text-foreground font-semibold">{displayCurrency(entry.running_balance)}</td>
                     <td className="p-3 text-center">
                       <Badge className={entry.status === "paid" ? "bg-success/10 text-success border-0" : entry.status === "partially_paid" ? "bg-warning/10 text-warning border-0" : "bg-muted text-foreground border-0"}>
                         {entry.status.replace("_", " ")}
