@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,19 +62,48 @@ export default function EmployeesPage() {
     return formatCurrency(parts.reduce((sum, part) => sum + toNumeric(part), 0));
   };
 
-  const calculateProfileCompletion = (employee: Employee): number => {
-    const requiredFields = [
+  const calculateProfileCompletion = (employee: Employee): { level: 'complete' | 'partial' | 'minimal', filledCount: number, totalCount: number } => {
+    const allFields = [
       employee.first_name,
       employee.last_name,
       employee.company_email,
       employee.phone,
+      employee.designation,
+      employee.employee_type,
+      employee.date_of_joining,
+      employee.date_of_birth,
+      employee.gender,
       employee.aadhaar_number,
       employee.pan_number,
-      employee.employee_type,
-      employee.designation,
+      employee.pf_number,
+      employee.bank_name,
+      employee.account_number,
+      employee.ifsc_code,
+      employee.base_salary,
+      employee.hra,
+      employee.other_allowance,
+      employee.special_pay,
+      employee.incentive,
     ];
-    const filledCount = requiredFields.filter(field => field && String(field).trim() !== "").length;
-    return Math.round((filledCount / requiredFields.length) * 100);
+    const filledCount = allFields.filter(field => {
+      if (field === null || field === undefined) return false;
+      if (typeof field === 'string') return field.trim() !== '';
+      if (typeof field === 'number') return true;
+      return false;
+    }).length;
+    const totalCount = allFields.length;
+    const percentage = (filledCount / totalCount) * 100;
+    
+    let level: 'complete' | 'partial' | 'minimal';
+    if (percentage === 100) {
+      level = 'complete';
+    } else if (percentage >= 50) {
+      level = 'partial';
+    } else {
+      level = 'minimal';
+    }
+    
+    return { level, filledCount, totalCount };
   };
 
   const filtered = useMemo(() => {
@@ -771,14 +800,16 @@ export default function EmployeesPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-2">
-                          {calculateProfileCompletion(emp) === 100 ? (
-                            <CheckCircle2 className="w-4 h-4 text-success" title="Profile Complete" />
-                          ) : (
-                            <div className="flex items-center gap-1" title={`${calculateProfileCompletion(emp)}% Complete`}>
-                              <AlertCircle className="w-4 h-4 text-warning" />
-                              <span className="text-xs text-muted-foreground">{calculateProfileCompletion(emp)}%</span>
-                            </div>
-                          )}
+                          {(() => {
+                            const completion = calculateProfileCompletion(emp);
+                            if (completion.level === 'complete') {
+                              return <CheckCircle2 className="w-5 h-5 text-success" title={`Profile Complete (${completion.filledCount}/${completion.totalCount} fields)`} />;
+                            } else if (completion.level === 'partial') {
+                              return <AlertCircle className="w-5 h-5 text-warning" title={`Partially Complete (${completion.filledCount}/${completion.totalCount} fields)`} />;
+                            } else {
+                              return <MinusCircle className="w-5 h-5 text-destructive" title={`Incomplete (${completion.filledCount}/${completion.totalCount} fields)`} />;
+                            }
+                          })()}
                         </div>
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
@@ -1019,7 +1050,7 @@ export default function EmployeesPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="text-sm font-medium">First Name</Label>
+                          <Label className="text-sm font-medium">First Name *</Label>
                           <Input 
                             value={formData.first_name || ""}
                             onChange={(e) => handleInputChange("first_name", e.target.value)}
@@ -1028,7 +1059,7 @@ export default function EmployeesPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-sm font-medium">Last Name</Label>
+                          <Label className="text-sm font-medium">Last Name *</Label>
                           <Input 
                             value={formData.last_name || ""}
                             onChange={(e) => handleInputChange("last_name", e.target.value)}
@@ -1038,7 +1069,7 @@ export default function EmployeesPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Company Email</Label>
+                        <Label className="text-sm font-medium">Company Email *</Label>
                         <Input 
                           value={formData.company_email || ""}
                           onChange={(e) => handleInputChange("company_email", e.target.value)}

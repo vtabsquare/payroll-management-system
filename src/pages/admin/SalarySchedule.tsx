@@ -110,6 +110,7 @@ export default function SalarySchedule() {
       salary: String(entry.salary),
       status: entry.status,
     });
+    setEmployeeSearchTerm("");
     setEditDialogOpen(true);
   };
 
@@ -126,6 +127,7 @@ export default function SalarySchedule() {
       salary: "",
       status: "upcoming",
     });
+    setEmployeeSearchTerm("");
     setCreateDialogOpen(true);
   };
 
