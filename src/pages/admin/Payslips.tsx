@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { monthNames, type PayrollRecord } from "@/lib/payroll";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye } from "lucide-react";
 import PayslipModal from "@/components/PayslipModal";
 import { motion } from "framer-motion";
@@ -11,9 +12,42 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function PayslipsPage() {
   const [records, setRecords] = useState<PayrollRecord[]>([]);
+  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [viewPayslip, setViewPayslip] = useState<PayrollRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  const filtered = useMemo(() => {
+    let next = records;
+    if (monthFilter !== "all") {
+      next = next.filter((record) => String(record.month) === monthFilter);
+    }
+    if (yearFilter !== "all") {
+      next = next.filter((record) => String(record.year) === yearFilter);
+    }
+    if (employeeFilter !== "all") {
+      next = next.filter((record) => record.employee_id === employeeFilter);
+    }
+    return next;
+  }, [records, monthFilter, yearFilter, employeeFilter]);
+
+  const employeeOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    records.forEach((record) => {
+      if (!map.has(record.employee_id)) {
+        map.set(record.employee_id, record.employee_name);
+      }
+    });
+    return Array.from(map.entries()).map(([empId, employeeName]) => ({ empId, employeeName }));
+  }, [records]);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set<number>();
+    records.forEach((record) => years.add(record.year));
+    return Array.from(years).sort((a, b) => b - a);
+  }, [records]);
 
   useEffect(() => {
     const loadPayslips = async () => {
@@ -37,9 +71,50 @@ export default function PayslipsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Payslips</h1>
-        <p className="text-sm text-muted-foreground mt-1">View detailed salary breakdowns for all employees</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Payslips</h1>
+          <p className="text-sm text-muted-foreground mt-1">View detailed salary breakdowns for all employees</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                <SelectItem key={m} value={String(m)}>{monthNames[m - 1]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Filter year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {yearOptions.map((year) => (
+                <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Filter employee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Employees</SelectItem>
+              {employeeOptions.map((option) => (
+                <SelectItem key={option.empId} value={option.empId}>
+                  {option.employeeName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="glass-card rounded-xl overflow-hidden">
@@ -54,7 +129,7 @@ export default function PayslipsPage() {
             </tr>
           </thead>
           <tbody>
-            {records.map((r, i) => (
+            {filtered.map((r, i) => (
               <motion.tr
                 key={r.payroll_id}
                 initial={{ opacity: 0 }}
@@ -80,7 +155,7 @@ export default function PayslipsPage() {
                 </td>
               </motion.tr>
             ))}
-            {!loading && records.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="p-6 text-center text-muted-foreground">No payslips found</td>
               </tr>

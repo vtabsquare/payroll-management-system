@@ -51,6 +51,18 @@ export default function SalarySchedule() {
     salary: "",
     status: "",
   });
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
+
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearchTerm.trim()) return employees;
+    const term = employeeSearchTerm.toLowerCase();
+    return employees.filter(
+      (emp) =>
+        emp.employee_id.toLowerCase().includes(term) ||
+        emp.first_name.toLowerCase().includes(term) ||
+        emp.last_name.toLowerCase().includes(term)
+    );
+  }, [employees, employeeSearchTerm]);
 
   useEffect(() => {
     loadData();
@@ -330,23 +342,31 @@ export default function SalarySchedule() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="edit-employee">Employee</Label>
-              <Select
-                value={editForm.employee_id}
-                onValueChange={(value) =>
-                  setEditForm({ ...editForm, employee_id: value })
-                }
-              >
-                <SelectTrigger id="edit-employee">
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.employee_id} value={emp.employee_id}>
-                      {emp.employee_id} - {emp.first_name} {emp.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Search employees..."
+                  value={employeeSearchTerm}
+                  onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                  className="h-9"
+                />
+                <Select
+                  value={editForm.employee_id}
+                  onValueChange={(value) =>
+                    setEditForm({ ...editForm, employee_id: value })
+                  }
+                >
+                  <SelectTrigger id="edit-employee">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredEmployees.map((emp) => (
+                      <SelectItem key={emp.employee_id} value={emp.employee_id}>
+                        {emp.employee_id} - {emp.first_name} {emp.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-start">Start Date</Label>
@@ -534,23 +554,31 @@ export default function SalarySchedule() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="create-employee">Employee</Label>
-              <Select
-                value={editForm.employee_id}
-                onValueChange={(value) =>
-                  setEditForm({ ...editForm, employee_id: value })
-                }
-              >
-                <SelectTrigger id="create-employee">
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.employee_id} value={emp.employee_id}>
-                      {emp.employee_id} - {emp.first_name} {emp.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Search employees..."
+                  value={employeeSearchTerm}
+                  onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                  className="h-9"
+                />
+                <Select
+                  value={editForm.employee_id}
+                  onValueChange={(value) =>
+                    setEditForm({ ...editForm, employee_id: value })
+                  }
+                >
+                  <SelectTrigger id="create-employee">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredEmployees.map((emp) => (
+                      <SelectItem key={emp.employee_id} value={emp.employee_id}>
+                        {emp.employee_id} - {emp.first_name} {emp.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="create-start">Start Date</Label>

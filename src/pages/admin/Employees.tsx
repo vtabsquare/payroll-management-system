@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown } from "lucide-react";
+import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +60,21 @@ export default function EmployeesPage() {
       return "₹*****";
     }
     return formatCurrency(parts.reduce((sum, part) => sum + toNumeric(part), 0));
+  };
+
+  const calculateProfileCompletion = (employee: Employee): number => {
+    const requiredFields = [
+      employee.first_name,
+      employee.last_name,
+      employee.company_email,
+      employee.phone,
+      employee.aadhaar_number,
+      employee.pan_number,
+      employee.employee_type,
+      employee.designation,
+    ];
+    const filledCount = requiredFields.filter(field => field && String(field).trim() !== "").length;
+    return Math.round((filledCount / requiredFields.length) * 100);
   };
 
   const filtered = useMemo(() => {
@@ -720,6 +735,7 @@ export default function EmployeesPage() {
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left p-4 font-medium text-muted-foreground">Employee</th>
+                  <th className="text-center p-4 font-medium text-muted-foreground">Profile</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Gross Salary</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Base Salary</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">HRA</th>
@@ -751,6 +767,18 @@ export default function EmployeesPage() {
                             <div className="font-medium text-foreground">{emp.first_name} {emp.last_name}</div>
                           </div>
                           <div className="text-xs text-muted-foreground">{emp.employee_id}</div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-center gap-2">
+                          {calculateProfileCompletion(emp) === 100 ? (
+                            <CheckCircle2 className="w-4 h-4 text-success" title="Profile Complete" />
+                          ) : (
+                            <div className="flex items-center gap-1" title={`${calculateProfileCompletion(emp)}% Complete`}>
+                              <AlertCircle className="w-4 h-4 text-warning" />
+                              <span className="text-xs text-muted-foreground">{calculateProfileCompletion(emp)}%</span>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="p-4 text-right font-mono text-foreground">
@@ -788,7 +816,7 @@ export default function EmployeesPage() {
                   ))}
                   {!loading && paginated.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="p-6 text-center text-muted-foreground">No employees found</td>
+                      <td colSpan={10} className="p-6 text-center text-muted-foreground">No employees found</td>
                     </tr>
                   )}
                 </AnimatePresence>
@@ -1020,10 +1048,11 @@ export default function EmployeesPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Phone</Label>
+                        <Label className="text-sm font-medium">Phone *</Label>
                         <Input 
                           value={formData.phone || ""}
                           onChange={(e) => handleInputChange("phone", e.target.value)}
+                          required
                           className="h-11" 
                         />
                       </div>
@@ -1047,18 +1076,20 @@ export default function EmployeesPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Aadhaar Number</Label>
+                        <Label className="text-sm font-medium">Aadhaar Number *</Label>
                         <Input 
                           value={formData.aadhaar_number || ""}
                           onChange={(e) => handleInputChange("aadhaar_number", e.target.value)}
+                          required
                           className="h-11" 
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">PAN Number</Label>
+                        <Label className="text-sm font-medium">PAN Number *</Label>
                         <Input 
                           value={formData.pan_number || ""}
                           onChange={(e) => handleInputChange("pan_number", e.target.value)}
+                          required
                           className="h-11" 
                         />
                       </div>
@@ -1077,68 +1108,11 @@ export default function EmployeesPage() {
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Select Employees</Label>
-                      <div className="space-y-2">
-                        {/* Selected employees */}
-                        {currentSelectedEmployees.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {currentSelectedEmployees.map((employeeName) => (
-                              <Badge 
-                                key={employeeName} 
-                                variant="secondary" 
-                                className="px-2 py-1 text-xs flex items-center gap-1"
-                              >
-                                {employeeName}
-                                <X 
-                                  className="w-3 h-3 cursor-pointer hover:text-destructive" 
-                                  onClick={() => removeEmployee(employeeName)}
-                                />
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {/* Input field */}
-                        <div className="relative employee-input-container">
-                          <Input
-                            value={employeeInput}
-                            onChange={(e) => handleEmployeeInputChange(e.target.value)}
-                            onKeyPress={handleEmployeeKeyPress}
-                            placeholder="Type to search employees..."
-                            className="h-11"
-                            onFocus={() => setShowEmployeeSuggestions(true)}
-                          />
-                          
-                          {/* Suggestions dropdown */}
-                          {showEmployeeSuggestions && employeeSuggestions.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-1 border border-input rounded-md bg-background shadow-lg z-50 max-h-48 overflow-y-auto">
-                              {employeeSuggestions.map((employee) => (
-                                <div
-                                  key={employee.employee_id}
-                                  className="px-3 py-2 hover:bg-muted cursor-pointer text-sm"
-                                  onClick={() => addEmployee(employee)}
-                                >
-                                  <div className="flex justify-between items-center">
-                                    <div>
-                                      <div className="font-medium">{employee.first_name} {employee.last_name}</div>
-                                      <div className="text-xs text-muted-foreground">{employee.employee_id} • {employee.designation}</div>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {employee.status === 'active' ? '🟢' : '🔴'}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Employee Type</Label>
+                      <Label className="text-sm font-medium">Employee Type *</Label>
                       <Input 
                         value={formData.employee_type || ""}
                         onChange={(e) => handleInputChange("employee_type", e.target.value)}
+                        required
                         className="h-11" 
                       />
                     </div>

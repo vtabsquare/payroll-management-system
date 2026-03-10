@@ -13,6 +13,7 @@ import { api } from "@/services/api";
 export default function PayrollPage() {
   const [records, setRecords] = useState<PayrollRecord[]>([]);
   const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [viewPayslip, setViewPayslip] = useState<PayrollRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,11 +24,14 @@ export default function PayrollPage() {
     if (monthFilter !== "all") {
       next = next.filter((record) => String(record.month) === monthFilter);
     }
+    if (yearFilter !== "all") {
+      next = next.filter((record) => String(record.year) === yearFilter);
+    }
     if (employeeFilter !== "all") {
       next = next.filter((record) => record.employee_id === employeeFilter);
     }
     return next;
-  }, [records, monthFilter, employeeFilter]);
+  }, [records, monthFilter, yearFilter, employeeFilter]);
 
   const employeeOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -37,6 +41,12 @@ export default function PayrollPage() {
       }
     });
     return Array.from(map.entries()).map(([empId, employeeName]) => ({ empId, employeeName }));
+  }, [records]);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set<number>();
+    records.forEach((record) => years.add(record.year));
+    return Array.from(years).sort((a, b) => b - a);
   }, [records]);
 
   const loadPayroll = async () => {
@@ -114,6 +124,18 @@ export default function PayrollPage() {
               <SelectItem value="all">All Months</SelectItem>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
                 <SelectItem key={m} value={String(m)}>{monthNames[m - 1]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Filter year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {yearOptions.map((year) => (
+                <SelectItem key={year} value={String(year)}>{year}</SelectItem>
               ))}
             </SelectContent>
           </Select>
