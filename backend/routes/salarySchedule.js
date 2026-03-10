@@ -31,10 +31,10 @@ router.get("/", authorize("admin"), async (req, res) => {
       employee_name: employeeMap.get(String(row.employee_id)) || "",
     }));
 
-    // Sort by start_month descending (most recent first)
+    // Sort by target_date descending (most recent first)
     enrichedSchedule.sort((a, b) => {
-      const aKey = String(a.start_month || "");
-      const bKey = String(b.start_month || "");
+      const aKey = String(a.target_date || "");
+      const bKey = String(b.target_date || "");
       return bKey.localeCompare(aKey);
     });
 
@@ -50,10 +50,10 @@ router.get("/", authorize("admin"), async (req, res) => {
  */
 router.post("/", authorize("admin"), async (req, res) => {
   try {
-    const { employee_id, start_month, end_month, salary, status } = req.body;
+    const { employee_id, target_date, salary, status } = req.body;
 
-    if (!employee_id || !start_month || !end_month || !salary) {
-      return res.status(400).json({ message: "employee_id, start_month, end_month, and salary are required" });
+    if (!employee_id || !target_date || !salary) {
+      return res.status(400).json({ message: "employee_id, target_date, and salary are required" });
     }
 
     const scheduleRows = await db.getAll(SHEETS.SALARY_SCHEDULE);
@@ -61,8 +61,7 @@ router.post("/", authorize("admin"), async (req, res) => {
     const newEntry = {
       salaryrev_id: nextId(scheduleRows.map((item) => ({ id: item.salaryrev_id }))),
       employee_id: String(employee_id),
-      start_month: String(start_month),
-      end_month: String(end_month),
+      target_date: String(target_date),
       salary: Number(salary),
       status: String(status || "upcoming"),
     };
@@ -91,8 +90,7 @@ router.patch("/:id", authorize("admin"), async (req, res) => {
     const updated = {
       ...current,
       employee_id: req.body.employee_id !== undefined ? String(req.body.employee_id) : current.employee_id,
-      start_month: req.body.start_month !== undefined ? String(req.body.start_month) : current.start_month,
-      end_month: req.body.end_month !== undefined ? String(req.body.end_month) : current.end_month,
+      target_date: req.body.target_date !== undefined ? String(req.body.target_date) : current.target_date,
       salary: req.body.salary !== undefined ? Number(req.body.salary) : Number(current.salary),
       status: req.body.status !== undefined ? String(req.body.status) : current.status,
     };

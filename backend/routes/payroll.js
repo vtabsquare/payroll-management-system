@@ -62,28 +62,7 @@ function canAccessRecord(user, record, users, employees) {
   return String(employee.employee_id) === String(record.employee_id);
 }
 
-function monthKeyToNumber(monthKey) {
-  if (!/^\d{4}-\d{2}$/.test(String(monthKey || ""))) return Number.NaN;
-  const [year, month] = String(monthKey).split("-").map(Number);
-  return year * 12 + month;
-}
-
-function resolveScheduledBasic(employeeId, month, year, scheduleRows, fallbackSalary) {
-  const targetMonthNumber = Number(year) * 12 + Number(month);
-  const matchingSchedule = scheduleRows.find((item) => {
-    if (String(item.employee_id) !== String(employeeId)) return false;
-    const start = monthKeyToNumber(item.start_month);
-    const end = monthKeyToNumber(item.end_month);
-    if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
-    return start <= targetMonthNumber && targetMonthNumber <= end;
-  });
-
-  if (!matchingSchedule) {
-    return Number(fallbackSalary || 0);
-  }
-
-  return Number(matchingSchedule.salary || fallbackSalary || 0);
-}
+// Salary schedule logic removed - base_salary is now updated directly via Update Now action
 
 router.get("/", async (req, res) => {
   try {
@@ -139,12 +118,11 @@ router.post("/generate", authorize("admin"), async (req, res) => {
     }
 
     // Fetch all required data
-    const [employees, attendanceRecords, existingPayroll, incentiveLedger, salarySchedule] = await Promise.all([
+    const [employees, attendanceRecords, existingPayroll, incentiveLedger] = await Promise.all([
       db.getAll(SHEETS.EMPLOYEES),
       db.getAll(SHEETS.ATTENDANCE_RECORDS),
       db.getAll(SHEETS.PAYROLL),
       db.getAll(SHEETS.INCENTIVE_LEDGER),
-      db.getAll(SHEETS.SALARY_SCHEDULE),
     ]);
 
     // Filter attendance for this month/year
@@ -193,16 +171,8 @@ router.post("/generate", authorize("admin"), async (req, res) => {
           String(entry.entry_type || "deduction").toLowerCase() === "deduction"
       );
 
-      const effectiveBasicSalary = resolveScheduledBasic(
-        emp.employee_id,
-        monthNum,
-        yearNum,
-        salarySchedule,
-        emp.base_salary
-      );
-
       const breakdown = calculateSalary({
-        basic: effectiveBasicSalary,
+        basic: Number(emp.base_salary || 0),
         hra: Number(emp.hra || 0),
         other_allowance: Number(emp.other_allowance || 0),
         special_pay: Number(emp.special_pay || 0),

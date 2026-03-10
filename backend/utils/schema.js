@@ -94,8 +94,7 @@ const SHEET_HEADERS = {
   [SHEETS.SALARY_SCHEDULE]: [
     "salaryrev_id",
     "employee_id",
-    "start_month",
-    "end_month",
+    "target_date",
     "salary",
     "status",
   ],

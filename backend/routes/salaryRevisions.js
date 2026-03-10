@@ -8,50 +8,37 @@ const { maskSalaries } = require("../middleware/maskSalaries");
 const router = express.Router();
 router.use(authenticate, authorize("admin"), maskSalaries);
 
-function monthKeyToNumber(monthKey) {
-  if (!/^\d{4}-\d{2}$/.test(String(monthKey || ""))) return Number.NaN;
-  const [year, month] = String(monthKey).split("-").map(Number);
-  return year * 12 + month;
+function getDaysUntilDate(targetDate) {
+  const target = new Date(targetDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  const diffTime = target - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
 }
 
-function getMonthKey(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function getNextMonthKey(date = new Date()) {
-  const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function normalizeScheduleStatuses(schedules, currentMonthKey) {
-  const currentMonthNum = monthKeyToNumber(currentMonthKey);
+function normalizeScheduleStatuses(schedules) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
   return schedules.map((item) => {
-    const start = monthKeyToNumber(item.start_month);
-    const end = monthKeyToNumber(item.end_month);
-
-    if (!Number.isFinite(start) || !Number.isFinite(end)) {
-      return item;
-    }
-
     if (String(item.status).toLowerCase() === "applied") {
       return item;
     }
 
-    if (start <= currentMonthNum && currentMonthNum <= end) {
-      return { ...item, status: "active" };
+    const targetDate = new Date(item.target_date);
+    targetDate.setHours(0, 0, 0, 0);
+
+    if (targetDate < today) {
+      return { ...item, status: "completed" };
     }
 
-    if (start > currentMonthNum) {
-      return { ...item, status: "upcoming" };
-    }
-
-    return { ...item, status: "completed" };
+    return { ...item, status: "upcoming" };
   });
 }
 
-function enrichNotifications(notifications, schedules, employees, currentMonthKey) {
-  const currentMonthNum = monthKeyToNumber(currentMonthKey);
-
+function enrichNotifications(notifications, schedules, employees) {
   return notifications.map((notification) => {
     const employee = employees.find(
       (emp) => String(emp.employee_id) === String(notification.employee_id)
@@ -63,21 +50,10 @@ function enrichNotifications(notifications, schedules, employees, currentMonthKe
           String(item.employee_id) === String(notification.employee_id) &&
           Number(item.salary) === Number(notification.new_salary)
       )
-      .sort((a, b) => monthKeyToNumber(a.start_month) - monthKeyToNumber(b.start_month))[0];
-
-    const activeSchedule = schedules.find((item) => {
-      const start = monthKeyToNumber(item.start_month);
-      const end = monthKeyToNumber(item.end_month);
-      return (
-        String(item.employee_id) === String(notification.employee_id) &&
-        Number.isFinite(start) &&
-        Number.isFinite(end) &&
-        start <= currentMonthNum &&
-        currentMonthNum <= end
-      );
-    });
+      .sort((a, b) => String(a.target_date).localeCompare(String(b.target_date)))[0];
 
     const reminderCount = Number(notification.reminder_count) || 0;
+    const daysUntil = targetSchedule ? getDaysUntilDate(targetSchedule.target_date) : 999;
 
     return {
       ...notification,
@@ -87,23 +63,21 @@ function enrichNotifications(notifications, schedules, employees, currentMonthKe
       employee_name: employee
         ? `${employee.first_name || ""} ${employee.last_name || ""}`.trim()
         : String(notification.employee_id),
-      current_salary: Number(activeSchedule?.salary || employee?.base_salary || 0),
+      current_salary: Number(employee?.base_salary || 0),
       new_salary: Number(notification.new_salary || 0),
-      effective_month: targetSchedule?.start_month || "",
+      target_date: targetSchedule?.target_date || "",
+      days_until: daysUntil,
     };
   });
 }
 
 async function syncSalaryScheduleInternal() {
-  const currentMonthKey = getMonthKey();
-  const nextMonthKey = getNextMonthKey();
-
   const [scheduleRows, notificationRows] = await Promise.all([
     db.getAll(SHEETS.SALARY_SCHEDULE),
     db.getAll(SHEETS.SALARY_CHANGE_NOTIFICATIONS),
   ]);
 
-  const normalizedSchedules = normalizeScheduleStatuses(scheduleRows, currentMonthKey);
+  const normalizedSchedules = normalizeScheduleStatuses(scheduleRows);
 
   const hasStatusChanges = normalizedSchedules.some(
     (item, index) => String(item.status || "") !== String(scheduleRows[index]?.status || "")
@@ -113,11 +87,12 @@ async function syncSalaryScheduleInternal() {
     await db.replaceAll(SHEETS.SALARY_SCHEDULE, normalizedSchedules);
   }
 
-  const toCreate = normalizedSchedules.filter(
-    (item) =>
-      String(item.start_month) === nextMonthKey &&
-      String(item.status).toLowerCase() !== "applied"
-  );
+  // Create notifications for schedules within 7 days and not applied
+  const toCreate = normalizedSchedules.filter((item) => {
+    if (String(item.status).toLowerCase() === "applied") return false;
+    const daysUntil = getDaysUntilDate(item.target_date);
+    return daysUntil >= 0 && daysUntil <= 7;
+  });
 
   let createdCount = 0;
   const nextNotifications = [...notificationRows];
@@ -150,8 +125,6 @@ async function syncSalaryScheduleInternal() {
   return {
     createdCount,
     scheduleCount: normalizedSchedules.length,
-    currentMonthKey,
-    nextMonthKey,
   };
 }
 
@@ -171,7 +144,6 @@ router.get("/notifications", async (_req, res) => {
   try {
     await syncSalaryScheduleInternal();
 
-    const currentMonthKey = getMonthKey();
     const [notifications, schedules, employees] = await Promise.all([
       db.getAll(SHEETS.SALARY_CHANGE_NOTIFICATIONS),
       db.getAll(SHEETS.SALARY_SCHEDULE),
@@ -182,11 +154,14 @@ router.get("/notifications", async (_req, res) => {
       (item) => String(item.status || "pending").toLowerCase() === "pending"
     );
 
-    const enriched = enrichNotifications(pending, schedules, employees, currentMonthKey)
-      .filter((item) => Boolean(item.effective_month))
+    const enriched = enrichNotifications(pending, schedules, employees)
+      .filter((item) => Boolean(item.target_date))
       .sort((a, b) => {
         if (a.final_reminder !== b.final_reminder) {
           return a.final_reminder ? -1 : 1;
+        }
+        if (a.days_until !== b.days_until) {
+          return a.days_until - b.days_until;
         }
         return (b.reminder_count || 0) - (a.reminder_count || 0);
       });
@@ -258,7 +233,7 @@ router.post("/notifications/:id/apply", async (req, res) => {
           String(item.employee_id) === String(notification.employee_id) &&
           Number(item.salary) === Number(notification.new_salary)
       )
-      .sort((a, b) => monthKeyToNumber(a.start_month) - monthKeyToNumber(b.start_month))[0];
+      .sort((a, b) => String(a.target_date).localeCompare(String(b.target_date)))[0];
 
     if (!matchingSchedule) {
       return res.status(404).json({ message: "Matching salary schedule not found" });
@@ -270,8 +245,7 @@ router.post("/notifications/:id/apply", async (req, res) => {
       updated_at: new Date().toISOString(),
     });
 
-    const currentMonthKey = getMonthKey();
-    const normalizedSchedules = normalizeScheduleStatuses(schedules, currentMonthKey).map((item) => {
+    const normalizedSchedules = normalizeScheduleStatuses(schedules).map((item) => {
       if (String(item.salaryrev_id) === String(matchingSchedule.salaryrev_id)) {
         return { ...item, status: "applied" };
       }

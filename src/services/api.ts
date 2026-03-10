@@ -65,7 +65,8 @@ export interface SalaryChangeNotification {
   employee_name: string;
   current_salary: number;
   new_salary: number;
-  effective_month: string;
+  target_date: string;
+  days_until: number;
   reminder_count: number;
   reminder_number: number;
   final_reminder: boolean;
@@ -91,8 +92,7 @@ export interface SalaryScheduleEntry {
   salaryrev_id: string;
   employee_id: string;
   employee_name?: string;
-  start_month: string;
-  end_month: string;
+  target_date: string;
   salary: number;
   status: string;
 }

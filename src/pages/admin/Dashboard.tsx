@@ -183,17 +183,19 @@ export default function AdminDashboard() {
                           <span className="font-medium text-foreground">{notification.employee_name}</span>
                           {' '}({notification.employee_id})
                         </p>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-muted-foreground">
-                            {formatCurrency(notification.current_salary)}
-                          </span>
-                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-semibold text-primary">
-                            {formatCurrency(notification.new_salary)}
-                          </span>
-                          <span className="text-muted-foreground">
-                            effective {notification.effective_month}
-                          </span>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground">
+                              {notification.employee_name}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Current: ₹{notification.current_salary.toLocaleString()} → New: ₹
+                              {notification.new_salary.toLocaleString()}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Target Date: {notification.target_date} ({notification.days_until} {notification.days_until === 1 ? 'day' : 'days'} remaining)
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
