@@ -367,12 +367,11 @@ export default function SalarySchedule() {
                     value={employeeSearchTerm || (editForm.employee_id ? employees.find(e => e.employee_id === editForm.employee_id)?.first_name + ' ' + employees.find(e => e.employee_id === editForm.employee_id)?.last_name + ' - ' + editForm.employee_id : '')}
                     onChange={(e) => {
                       setEmployeeSearchTerm(e.target.value);
-                      setShowEmployeeSuggestions(true);
+                      setShowEmployeeSuggestions(e.target.value.length > 0);
                       if (!e.target.value) {
                         setEditForm({ ...editForm, employee_id: '' });
                       }
                     }}
-                    onFocus={() => setShowEmployeeSuggestions(true)}
                     className="h-10 pl-9 pr-9"
                   />
                   {employeeSearchTerm && (
@@ -482,12 +481,11 @@ export default function SalarySchedule() {
                     value={employeeSearchTerm || (editForm.employee_id ? employees.find(e => e.employee_id === editForm.employee_id)?.first_name + ' ' + employees.find(e => e.employee_id === editForm.employee_id)?.last_name + ' - ' + editForm.employee_id : '')}
                     onChange={(e) => {
                       setEmployeeSearchTerm(e.target.value);
-                      setShowEmployeeSuggestions(true);
+                      setShowEmployeeSuggestions(e.target.value.length > 0);
                       if (!e.target.value) {
                         setEditForm({ ...editForm, employee_id: '' });
                       }
                     }}
-                    onFocus={() => setShowEmployeeSuggestions(true)}
                     className="h-10 pl-9 pr-9"
                   />
                   {employeeSearchTerm && (

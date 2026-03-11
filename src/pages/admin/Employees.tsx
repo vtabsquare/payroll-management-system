@@ -42,6 +42,17 @@ export default function EmployeesPage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const { toast } = useToast();
 
+  // Get unique designations from existing employees
+  const uniqueDesignations = useMemo(() => {
+    const designations = new Set<string>();
+    list.forEach(emp => {
+      if (emp.designation && emp.designation.trim()) {
+        designations.add(emp.designation.trim());
+      }
+    });
+    return Array.from(designations).sort();
+  }, [list]);
+
   const isMaskedValue = (value: unknown) => typeof value === "string" && value.includes("*");
 
   const toNumeric = (value: unknown): number => {
@@ -1362,22 +1373,32 @@ export default function EmployeesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Employee Type *</Label>
-                      <Input 
+                      <select
                         value={formData.employee_type || ""}
                         onChange={(e) => handleInputChange("employee_type", e.target.value)}
+                        className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         required
-                        className="h-11" 
-                      />
+                      >
+                        <option value="">Select employee type</option>
+                        <option value="Full Time">Full Time</option>
+                        <option value="Intern">Intern</option>
+                      </select>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Designation *</Label>
-                      <Input 
+                      <select
                         value={formData.designation || ""}
                         onChange={(e) => handleInputChange("designation", e.target.value)}
-                        placeholder="e.g. Software Engineer, Manager"
+                        className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         required
-                        className="h-11" 
-                      />
+                      >
+                        <option value="">Select designation</option>
+                        {uniqueDesignations.map((designation) => (
+                          <option key={designation} value={designation}>
+                            {designation}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Date of Joining</Label>
