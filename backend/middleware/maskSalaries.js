@@ -52,8 +52,9 @@ function maskSalaryNotification(notification) {
 }
 
 function maskSalaries(req, res, next) {
-  // Admins and users with can_view_salaries permission see all data unmasked
-  if (!req.user || req.user.can_view_salaries || req.user.role === 'admin') {
+  // Only users with can_view_salaries permission see all data unmasked
+  // Admin role alone is not enough - they must have the permission enabled
+  if (!req.user || req.user.can_view_salaries) {
     return next();
   }
 
