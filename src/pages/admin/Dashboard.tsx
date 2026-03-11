@@ -107,8 +107,9 @@ export default function AdminDashboard() {
       label: "Total Expense",
       value: payrollRecords.reduce((sum, p) => sum + (Number(p.net_salary) || 0), 0),
       icon: IndianRupee,
-      prefix: "₹",
+      prefix: "",
       color: "text-success",
+      formatAsCurrency: true,
     },
     {
       label: "Pending Payments",
@@ -240,7 +241,7 @@ export default function AdminDashboard() {
               <s.icon className={`w-5 h-5 ${s.color}`} />
             </div>
             <div className="text-2xl font-bold text-foreground">
-              <AnimatedCounter value={s.value} prefix={s.prefix} />
+              <AnimatedCounter value={s.value} prefix={s.prefix} formatAsCurrency={s.formatAsCurrency} />
             </div>
           </motion.div>
         ))}

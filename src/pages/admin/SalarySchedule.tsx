@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type SalaryScheduleEntry, type Employee } from "@/services/api";
+import { formatCurrency } from "@/lib/salaryEngine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -311,7 +312,7 @@ export default function SalarySchedule() {
                     <TableCell className="font-mono">{entry.employee_id}</TableCell>
                     <TableCell>{entry.employee_name || "—"}</TableCell>
                     <TableCell>{entry.target_date}</TableCell>
-                    <TableCell>₹{entry.salary.toLocaleString()}</TableCell>
+                    <TableCell>{formatCurrency(entry.salary)}</TableCell>
                     <TableCell>
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(

@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { formatCurrency } from "@/lib/salaryEngine";
 
 interface Props {
   value: number;
   prefix?: string;
   duration?: number;
+  formatAsCurrency?: boolean;
 }
 
-export default function AnimatedCounter({ value, prefix = "", duration = 1.5 }: Props) {
+export default function AnimatedCounter({ value, prefix = "", duration = 1.5, formatAsCurrency = false }: Props) {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function AnimatedCounter({ value, prefix = "", duration = 1.5 }: 
       animate={{ opacity: 1, scale: 1 }}
       className="tabular-nums"
     >
-      {prefix}{display.toLocaleString("en-IN")}
+      {formatAsCurrency ? formatCurrency(display) : `${prefix}${display.toLocaleString("en-IN")}`}
     </motion.span>
   );
 }
