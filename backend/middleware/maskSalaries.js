@@ -62,26 +62,29 @@ function maskSalaries(req, res, next) {
 
   res.json = function (data) {
     if (data && typeof data === "object") {
-      // For employee role: don't mask their own profile data
-      if (data.profile && typeof data.profile === "object") {
+      // For employee role only: don't mask their own profile data
+      if (data.profile && typeof data.profile === "object" && req.user.role === 'employee') {
         // Profile is always the logged-in user's own data, so don't mask it
         // Employees should see their own salary information
         return originalJson(data);
       }
       
-      // For employee role: don't mask their own payroll records
-      if (data.payroll && Array.isArray(data.payroll)) {
+      // For employee role only: don't mask their own payroll records
+      if (data.payroll && Array.isArray(data.payroll) && req.user.role === 'employee') {
         // Payroll records are already filtered by canAccessRecord in the route
         // So employees only get their own records - don't mask them
         return originalJson(data);
       }
       
-      // Mask other data types (employees list, ledger, etc.) for non-admin users
+      // Mask all salary-related data for users without can_view_salaries permission
       if (data.employees && Array.isArray(data.employees)) {
         data.employees = data.employees.map(maskEmployeeSalaries);
       }
       if (data.employee && typeof data.employee === "object") {
         data.employee = maskEmployeeSalaries(data.employee);
+      }
+      if (data.payroll && Array.isArray(data.payroll)) {
+        data.payroll = data.payroll.map(maskPayrollSalaries);
       }
       if (data.generated && Array.isArray(data.generated)) {
         data.generated = data.generated.map(maskPayrollSalaries);
