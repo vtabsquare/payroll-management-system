@@ -41,6 +41,7 @@ export default function PayslipModal({ record, onClose }: Props) {
             <div className="text-right">
               <p className="text-muted-foreground">Working Days: <span className="text-foreground font-medium">{record.working_days}</span></p>
               <p className="text-muted-foreground">Paid Days: <span className="text-foreground font-medium">{record.paid_days}</span></p>
+              <p className="text-muted-foreground">Extra Days: <span className="text-foreground font-medium">{record.extra_days || 0}</span></p>
             </div>
           </div>
 

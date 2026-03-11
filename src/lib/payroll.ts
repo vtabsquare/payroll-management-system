@@ -35,6 +35,7 @@ export interface PayrollRecord {
   year: number;
   working_days: number;
   paid_days: number;
+  extra_days?: number;
   basic_salary: number;
   hra: number;
   other_allowance: number;

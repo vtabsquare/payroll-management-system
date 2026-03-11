@@ -192,6 +192,7 @@ router.post("/generate", authorize("admin"), async (req, res) => {
         year: yearNum,
         working_days: Number(attendance.working_days),
         paid_days: Number(attendance.paid_days),
+        extra_days: Number(attendance.extra_days || 0),
         basic_salary: breakdown.basic_salary,
         hra: breakdown.hra,
         other_allowance: breakdown.other_allowance,

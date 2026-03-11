@@ -56,6 +56,7 @@ const SHEET_HEADERS = {
     "year",
     "working_days",
     "paid_days",
+    "extra_days",
     "basic_salary",
     "hra",
     "other_allowance",
