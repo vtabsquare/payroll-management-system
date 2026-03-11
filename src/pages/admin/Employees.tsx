@@ -109,25 +109,44 @@ export default function EmployeesPage() {
   };
 
   const filtered = useMemo(() => {
+    let result = list;
+    
+    // Apply search filter
     const query = search.trim().toLowerCase();
-    if (!query) return list;
+    if (query) {
+      const normalizedQuery = query.replace(/\s+/g, "");
+      result = result.filter((employee) => {
+        const firstName = String(employee.first_name || "").toLowerCase();
+        const lastName = String(employee.last_name || "").toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const fullNameNoSpace = `${firstName}${lastName}`;
+        const employeeId = String(employee.employee_id || "").toLowerCase();
 
-    const normalizedQuery = query.replace(/\s+/g, "");
-
-    return list.filter((employee) => {
-      const firstName = String(employee.first_name || "").toLowerCase();
-      const lastName = String(employee.last_name || "").toLowerCase();
-      const fullName = `${firstName} ${lastName}`.trim();
-      const fullNameNoSpace = `${firstName}${lastName}`;
-      const employeeId = String(employee.employee_id || "").toLowerCase();
-
-      return (
-        fullName.includes(query) ||
-        fullNameNoSpace.includes(normalizedQuery) ||
-        employeeId.includes(normalizedQuery)
-      );
-    });
-  }, [list, search]);
+        return (
+          fullName.includes(query) ||
+          fullNameNoSpace.includes(normalizedQuery) ||
+          employeeId.includes(normalizedQuery)
+        );
+      });
+    }
+    
+    // Apply sorting
+    if (sortBy === 'name') {
+      result.sort((a, b) => {
+        const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+        const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      });
+    } else if (sortBy === 'id') {
+      result.sort((a, b) => {
+        return sortOrder === 'asc' 
+          ? a.employee_id.localeCompare(b.employee_id)
+          : b.employee_id.localeCompare(a.employee_id);
+      });
+    }
+    
+    return result;
+  }, [list, search, sortBy, sortOrder]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);

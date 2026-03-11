@@ -90,14 +90,37 @@ export default function SalarySchedule() {
   const filteredSchedule = useMemo(() => {
     if (!searchTerm.trim()) return schedule;
     const term = searchTerm.toLowerCase();
-    return schedule.filter(
-      (entry) =>
-        entry.employee_id.toLowerCase().includes(term) ||
-        entry.employee_name?.toLowerCase().includes(term) ||
-        entry.target_date.toLowerCase().includes(term) ||
-        entry.status.toLowerCase().includes(term)
-    );
-  }, [schedule, searchTerm]);
+    
+    return schedule.filter((entry) => {
+      // Search by employee ID
+      if (entry.employee_id.toLowerCase().includes(term)) return true;
+      
+      // Search by employee name
+      if (entry.employee_name?.toLowerCase().includes(term)) return true;
+      
+      // Search by target date
+      if (entry.target_date.toLowerCase().includes(term)) return true;
+      
+      // Search by status
+      if (entry.status.toLowerCase().includes(term)) return true;
+      
+      // Also search against the full employee data for more comprehensive results
+      const employee = employees.find(emp => emp.employee_id === entry.employee_id);
+      if (employee) {
+        // Search in employee's full name
+        const fullName = `${employee.first_name} ${employee.last_name}`.toLowerCase();
+        if (fullName.includes(term)) return true;
+        
+        // Search in designation
+        if (employee.designation?.toLowerCase().includes(term)) return true;
+        
+        // Search in employee type
+        if (employee.employee_type?.toLowerCase().includes(term)) return true;
+      }
+      
+      return false;
+    });
+  }, [schedule, searchTerm, employees]);
 
   const handleEdit = (entry: SalaryScheduleEntry) => {
     setSelectedEntry(entry);
@@ -245,7 +268,7 @@ export default function SalarySchedule() {
       <div className="mb-6 flex items-center gap-4">
         <div className="flex-1">
           <Input
-            placeholder="Search by employee ID, name, month, or status..."
+            placeholder="Search by employee ID, name, designation, type, date, or status..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-md"
