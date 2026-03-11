@@ -37,6 +37,8 @@ export default function EmployeesPage() {
   const [ledgerSaving, setLedgerSaving] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'id' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [ledgerSortBy, setLedgerSortBy] = useState<'date' | 'employee' | 'amount' | null>(null);
+  const [ledgerSortOrder, setLedgerSortOrder] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
 
   const isMaskedValue = (value: unknown) => typeof value === "string" && value.includes("*");
@@ -178,30 +180,56 @@ export default function EmployeesPage() {
   };
 
   const filteredLedger = useMemo(() => {
+    let result = incentiveLedger;
+    
+    // Apply search filter
     const query = search.trim().toLowerCase();
-    if (!query) return incentiveLedger;
+    if (query) {
+      const normalizedQuery = query.replace(/\s+/g, "");
+      const matchingEmployeeIds = new Set<string>();
 
-    const normalizedQuery = query.replace(/\s+/g, "");
-    const matchingEmployeeIds = new Set<string>();
+      for (const employee of list) {
+        const firstName = String(employee.first_name || "").toLowerCase();
+        const lastName = String(employee.last_name || "").toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const fullNameNoSpace = `${firstName}${lastName}`;
+        const employeeId = String(employee.employee_id || "").toLowerCase();
 
-    for (const employee of list) {
-      const firstName = String(employee.first_name || "").toLowerCase();
-      const lastName = String(employee.last_name || "").toLowerCase();
-      const fullName = `${firstName} ${lastName}`.trim();
-      const fullNameNoSpace = `${firstName}${lastName}`;
-      const employeeId = String(employee.employee_id || "").toLowerCase();
-
-      if (
-        fullName.includes(query) ||
-        fullNameNoSpace.includes(normalizedQuery) ||
-        employeeId.includes(normalizedQuery)
-      ) {
-        matchingEmployeeIds.add(employee.employee_id);
+        if (
+          fullName.includes(query) ||
+          fullNameNoSpace.includes(normalizedQuery) ||
+          employeeId.includes(normalizedQuery)
+        ) {
+          matchingEmployeeIds.add(employee.employee_id);
+        }
       }
-    }
 
-    return incentiveLedger.filter((entry) => matchingEmployeeIds.has(entry.employee_id));
-  }, [incentiveLedger, search, list]);
+      result = result.filter((entry) => matchingEmployeeIds.has(entry.employee_id));
+    }
+    
+    // Apply sorting
+    if (ledgerSortBy === 'date') {
+      result.sort((a, b) => {
+        const dateA = `${a.year}-${String(a.month).padStart(2, '0')}`;
+        const dateB = `${b.year}-${String(b.month).padStart(2, '0')}`;
+        return ledgerSortOrder === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+      });
+    } else if (ledgerSortBy === 'employee') {
+      result.sort((a, b) => {
+        const nameA = (a.employee_name || '').toLowerCase();
+        const nameB = (b.employee_name || '').toLowerCase();
+        return ledgerSortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      });
+    } else if (ledgerSortBy === 'amount') {
+      result.sort((a, b) => {
+        const amountA = Number(a.amount) || 0;
+        const amountB = Number(b.amount) || 0;
+        return ledgerSortOrder === 'asc' ? amountA - amountB : amountB - amountA;
+      });
+    }
+    
+    return result;
+  }, [incentiveLedger, search, list, ledgerSortBy, ledgerSortOrder]);
 
   const ledgerSummary = useMemo(() => {
     const byEmployee = new Map<string, IncentiveLedgerEntry[]>();
@@ -834,12 +862,7 @@ export default function EmployeesPage() {
                             />
                             <div className="font-medium text-foreground">{emp.first_name} {emp.last_name}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <span>{emp.employee_id}</span>
-                    {sortBy === 'id' && (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                    )}
-                  </div>
+                          <div className="text-xs text-muted-foreground">{emp.employee_id}</div>
                         </div>
                       </td>
                       <td className="p-4">
@@ -984,10 +1007,67 @@ export default function EmployeesPage() {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left p-3 font-medium text-muted-foreground">Ledger ID</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Employee</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Month</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">
+                  <button
+                    onClick={() => {
+                      if (ledgerSortBy === 'employee') {
+                        setLedgerSortOrder(ledgerSortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setLedgerSortBy('employee');
+                        setLedgerSortOrder('asc');
+                      }
+                    }}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    Employee
+                    {ledgerSortBy === 'employee' ? (
+                      ledgerSortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : (
+                      <ArrowUpDown className="w-4 h-4 opacity-50" />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left p-3 font-medium text-muted-foreground">
+                  <button
+                    onClick={() => {
+                      if (ledgerSortBy === 'date') {
+                        setLedgerSortOrder(ledgerSortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setLedgerSortBy('date');
+                        setLedgerSortOrder('asc');
+                      }
+                    }}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    Month
+                    {ledgerSortBy === 'date' ? (
+                      ledgerSortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : (
+                      <ArrowUpDown className="w-4 h-4 opacity-50" />
+                    )}
+                  </button>
+                </th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
-                <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">
+                  <button
+                    onClick={() => {
+                      if (ledgerSortBy === 'amount') {
+                        setLedgerSortOrder(ledgerSortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setLedgerSortBy('amount');
+                        setLedgerSortOrder('asc');
+                      }
+                    }}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    Amount
+                    {ledgerSortBy === 'amount' ? (
+                      ledgerSortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                    ) : (
+                      <ArrowUpDown className="w-4 h-4 opacity-50" />
+                    )}
+                  </button>
+                </th>
                 <th className="text-right p-3 font-medium text-muted-foreground">Running Balance</th>
                 <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Transaction Date</th>
