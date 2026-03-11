@@ -20,6 +20,7 @@ import {
 
 interface ParsedRow extends AttendanceRow {
   valid: boolean;
+  extra_days: number;
 }
 
 export default function AttendancePage() {
@@ -168,13 +169,15 @@ export default function AttendancePage() {
         paidDays = computed.paidDays;
       }
 
-      const valid = !!employeeId && !!employeeName && workingDays > 0 && paidDays >= 0 && paidDays <= workingDays;
+      const extraDays = paidDays > workingDays ? Math.round((paidDays - workingDays) * 100) / 100 : 0;
+      const valid = !!employeeId && !!employeeName && workingDays > 0 && paidDays >= 0;
 
       return {
         employee_id: employeeId,
         employee_name: employeeName,
         working_days: workingDays,
         paid_days: paidDays,
+        extra_days: extraDays,
         valid,
       };
     });
@@ -386,6 +389,7 @@ export default function AttendancePage() {
                   <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
                   <th className="text-right p-3 font-medium text-muted-foreground">Working Days</th>
                   <th className="text-right p-3 font-medium text-muted-foreground">Paid Days</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Extra Days</th>
                 </tr>
               </thead>
               <tbody>
@@ -402,6 +406,7 @@ export default function AttendancePage() {
                     <td className="p-3 text-foreground">{r.employee_name}</td>
                     <td className="p-3 text-right font-mono">{r.working_days}</td>
                     <td className="p-3 text-right font-mono">{r.paid_days}</td>
+                    <td className="p-3 text-right font-mono">{r.extra_days}</td>
                   </tr>
                 ))}
               </tbody>

@@ -179,6 +179,7 @@ router.post("/generate", authorize("admin"), async (req, res) => {
         incentive: Number(emp.incentive || 0),
         working_days: Number(attendance.working_days),
         paid_days: Number(attendance.paid_days),
+        extra_days: Number(attendance.extra_days || 0),
         incentive_payout: 0,
       });
 

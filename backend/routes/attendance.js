@@ -16,6 +16,14 @@ function validateRow(row, employeeIds) {
   const employeeName = String(row.employee_name || "").trim();
   const workingDays = Number(row.working_days);
   const paidDays = Number(row.paid_days);
+  const normalizedPaidDays =
+    Number.isFinite(workingDays) && Number.isFinite(paidDays) && paidDays > workingDays
+      ? workingDays
+      : paidDays;
+  const extraDays =
+    Number.isFinite(workingDays) && Number.isFinite(paidDays) && paidDays > workingDays
+      ? paidDays - workingDays
+      : 0;
 
   const errors = [];
 
@@ -37,15 +45,12 @@ function validateRow(row, employeeIds) {
     errors.push("paid_days must be >= 0");
   }
 
-  if (Number.isFinite(workingDays) && Number.isFinite(paidDays) && paidDays > workingDays) {
-    errors.push("paid_days cannot exceed working_days");
-  }
-
   return {
     employee_id: employeeId,
     employee_name: employeeName,
     working_days: workingDays,
-    paid_days: paidDays,
+    paid_days: normalizedPaidDays,
+    extra_days: extraDays,
     valid: errors.length === 0,
     errors,
   };
@@ -143,6 +148,7 @@ router.post("/upload", async (req, res) => {
         year: yearNum,
         working_days: row.working_days,
         paid_days: row.paid_days,
+        extra_days: row.extra_days,
         created_at: nowIso(),
       };
       await db.append(SHEETS.ATTENDANCE_RECORDS, record);

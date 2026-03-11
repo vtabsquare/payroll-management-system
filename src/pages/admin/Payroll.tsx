@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Mail, Lock, Eye } from "lucide-react";
+import { Download, Mail, Lock, Eye, ArrowDownAZ, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +15,9 @@ export default function PayrollPage() {
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"name" | "id">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [viewPayslip, setViewPayslip] = useState<PayrollRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -30,8 +33,18 @@ export default function PayrollPage() {
     if (employeeFilter !== "all") {
       next = next.filter((record) => record.employee_id === employeeFilter);
     }
-    return next;
-  }, [records, monthFilter, yearFilter, employeeFilter]);
+    return [...next].sort((a, b) => {
+      if (sortBy === "id") {
+        const aId = String(a.employee_id || "").toLowerCase();
+        const bId = String(b.employee_id || "").toLowerCase();
+        return sortOrder === "asc" ? aId.localeCompare(bId, undefined, { numeric: true }) : bId.localeCompare(aId, undefined, { numeric: true });
+      }
+
+      const aName = String(a.employee_name || "").toLowerCase();
+      const bName = String(b.employee_name || "").toLowerCase();
+      return sortOrder === "asc" ? aName.localeCompare(bName) : bName.localeCompare(aName);
+    });
+  }, [records, monthFilter, yearFilter, employeeFilter, sortBy, sortOrder]);
 
   const employeeOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -161,7 +174,72 @@ export default function PayrollPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left p-4 font-medium text-muted-foreground">Employee</th>
+                <th className="text-left p-4 font-medium text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span>Employee</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowSortDropdown(!showSortDropdown)}
+                        className="flex items-center gap-1 hover:text-foreground transition-colors p-1 rounded hover:bg-accent"
+                        title="Sort options"
+                      >
+                        <ArrowDownAZ className="w-4 h-4" />
+                      </button>
+                      {showSortDropdown && (
+                        <div className="absolute left-0 top-full mt-1 bg-popover border border-border rounded-md shadow-lg z-50 min-w-[160px]">
+                          <button
+                            onClick={() => {
+                              setSortBy("name");
+                              setSortOrder("asc");
+                              setShowSortDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                            Sort by Name (A-Z)
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSortBy("name");
+                              setSortOrder("desc");
+                              setShowSortDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                            Sort by Name (Z-A)
+                          </button>
+                          <div className="border-t border-border my-1"></div>
+                          <button
+                            onClick={() => {
+                              setSortBy("id");
+                              setSortOrder("asc");
+                              setShowSortDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                            Sort by ID (Ascending)
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSortBy("id");
+                              setSortOrder("desc");
+                              setShowSortDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                            Sort by ID (Descending)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      ({sortBy === "name" ? "Name" : "ID"} {sortOrder === "asc" ? "↑" : "↓"})
+                    </span>
+                  </div>
+                </th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Period</th>
                 <th className="text-right p-4 font-medium text-muted-foreground">Gross</th>
                 <th className="text-right p-4 font-medium text-muted-foreground">Deductions</th>
