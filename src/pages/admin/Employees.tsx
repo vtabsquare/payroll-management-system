@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle } from "lucide-react";
+import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,8 @@ export default function EmployeesPage() {
   const [payoutDate, setPayoutDate] = useState(new Date().toISOString().slice(0, 10));
   const [payoutReference, setPayoutReference] = useState("");
   const [ledgerSaving, setLedgerSaving] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'id' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
 
   const isMaskedValue = (value: unknown) => typeof value === "string" && value.includes("*");
@@ -333,16 +335,15 @@ export default function EmployeesPage() {
     const desig = formData.designation || "";
     return desig.split(',').map(d => d.trim()).filter(d => d.length > 0);
   }, [formData.designation]);
-  
+
   const handleEmployeeInputChange = (value: string) => {
     setEmployeeInput(value);
-    
-    // Filter employees based on input
+
     if (value.length > 0) {
-      const filtered = list.filter(emp => 
+      const filtered = list.filter(emp =>
         (emp.first_name.toLowerCase().includes(value.toLowerCase()) ||
          emp.last_name.toLowerCase().includes(value.toLowerCase()) ||
-         emp.employee_id.toLowerCase().includes(value.toLowerCase())) && 
+         emp.employee_id.toLowerCase().includes(value.toLowerCase())) &&
         !currentSelectedEmployees.includes(emp.employee_id)
       );
       setEmployeeSuggestions(filtered);
@@ -763,7 +764,26 @@ export default function EmployeesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left p-4 font-medium text-muted-foreground">Employee</th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">
+                    <button
+                      onClick={() => {
+                        if (sortBy === 'name') {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy('name');
+                          setSortOrder('asc');
+                        }
+                      }}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Employee
+                      {sortBy === 'name' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                      ) : (
+                        <ArrowUpDown className="w-4 h-4 opacity-50" />
+                      )}
+                    </button>
+                  </th>
                   <th className="text-center p-4 font-medium text-muted-foreground">Profile</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Gross Salary</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Base Salary</th>
@@ -795,7 +815,12 @@ export default function EmployeesPage() {
                             />
                             <div className="font-medium text-foreground">{emp.first_name} {emp.last_name}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground">{emp.employee_id}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span>{emp.employee_id}</span>
+                    {sortBy === 'id' && (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    )}
+                  </div>
                         </div>
                       </td>
                       <td className="p-4">
@@ -995,32 +1020,37 @@ export default function EmployeesPage() {
           {/* Modern Progress Bar */}
           <div className="mb-8">
             <div className="relative">
-              <div className="absolute top-5 left-0 right-0 h-0.5 bg-muted"></div>
+              <div className="absolute top-[19px] left-[19px] right-[19px] h-0.5 bg-muted"></div>
               <div 
-                className="absolute top-5 left-0 h-0.5 bg-primary transition-all duration-300"
-                style={{ width: `${((formStep - 1) / 3) * 100}%` }}
+                className="absolute top-[19px] left-[19px] h-0.5 bg-primary transition-all duration-300"
+                style={{ width: `${((formStep - 1) / 3) * (100 - (38 / 9))}%` }}
               ></div>
               <div className="relative flex justify-between">
                 {[
                   { step: 1, label: "Personal", icon: User },
                   { step: 2, label: "Employment", icon: Building },
                   { step: 3, label: "Bank", icon: CreditCard },
-                  { step: 4, label: "Salary", icon: Calendar }
+                  { step: 4, label: "Salary", icon: Calendar },
                 ].map(({ step, label, icon: Icon }) => (
-                  <div key={step} className="flex flex-col items-center">
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => setFormStep(step)}
+                    className="flex flex-col items-center group -m-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                       step <= formStep
                         ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                        : "bg-muted text-muted-foreground"
+                        : "bg-muted text-muted-foreground group-hover:bg-muted-80"
                     }`}>
                       <Icon className="w-4 h-4" />
                     </div>
                     <span className={`mt-2 text-xs font-medium transition-colors duration-300 ${
-                      step <= formStep ? "text-foreground" : "text-muted-foreground"
+                      step <= formStep ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
                     }`}>
                       {label}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

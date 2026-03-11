@@ -1,5 +1,7 @@
 import type { Employee, PayrollRecord } from "@/lib/payroll";
 
+export type { Employee, PayrollRecord };
+
 export type UserRole = "admin" | "employee";
 
 export interface AuthUser {

@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Pencil, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Plus, Search, X } from "lucide-react";
 
 export default function SalarySchedule() {
   const navigate = useNavigate();
@@ -335,12 +335,24 @@ export default function SalarySchedule() {
             <div className="space-y-2">
               <Label htmlFor="edit-employee">Employee</Label>
               <div className="space-y-2">
-                <Input
-                  placeholder="Search employees..."
-                  value={employeeSearchTerm}
-                  onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                  className="h-9"
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search by ID, name..."
+                    value={employeeSearchTerm}
+                    onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                    className="h-9 pl-9 pr-9"
+                  />
+                  {employeeSearchTerm && (
+                    <X
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 cursor-pointer hover:text-foreground"
+                      onClick={() => setEmployeeSearchTerm("")}
+                    />
+                  )}
+                </div>
+                {employeeSearchTerm && filteredEmployees.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No employees found</p>
+                )}
                 <Select
                   value={editForm.employee_id}
                   onValueChange={(value) =>
@@ -348,14 +360,20 @@ export default function SalarySchedule() {
                   }
                 >
                   <SelectTrigger id="edit-employee">
-                    <SelectValue placeholder="Select employee" />
+                    <SelectValue placeholder={employeeSearchTerm ? "Select from filtered results" : "Select employee"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredEmployees.map((emp) => (
-                      <SelectItem key={emp.employee_id} value={emp.employee_id}>
-                        {emp.employee_id} - {emp.first_name} {emp.last_name}
-                      </SelectItem>
-                    ))}
+                    {filteredEmployees.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No employees found
+                      </div>
+                    ) : (
+                      filteredEmployees.map((emp) => (
+                        <SelectItem key={emp.employee_id} value={emp.employee_id}>
+                          {emp.employee_id} - {emp.first_name} {emp.last_name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -422,12 +440,24 @@ export default function SalarySchedule() {
             <div className="space-y-2">
               <Label htmlFor="create-employee">Employee</Label>
               <div className="space-y-2">
-                <Input
-                  placeholder="Search employees..."
-                  value={employeeSearchTerm}
-                  onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                  className="h-9"
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search by ID, name..."
+                    value={employeeSearchTerm}
+                    onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                    className="h-9 pl-9 pr-9"
+                  />
+                  {employeeSearchTerm && (
+                    <X
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 cursor-pointer hover:text-foreground"
+                      onClick={() => setEmployeeSearchTerm("")}
+                    />
+                  )}
+                </div>
+                {employeeSearchTerm && filteredEmployees.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No employees found</p>
+                )}
                 <Select
                   value={editForm.employee_id}
                   onValueChange={(value) =>
@@ -435,14 +465,20 @@ export default function SalarySchedule() {
                   }
                 >
                   <SelectTrigger id="create-employee">
-                    <SelectValue placeholder="Select employee" />
+                    <SelectValue placeholder={employeeSearchTerm ? "Select from filtered results" : "Select employee"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredEmployees.map((emp) => (
-                      <SelectItem key={emp.employee_id} value={emp.employee_id}>
-                        {emp.employee_id} - {emp.first_name} {emp.last_name}
-                      </SelectItem>
-                    ))}
+                    {filteredEmployees.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No employees found
+                      </div>
+                    ) : (
+                      filteredEmployees.map((emp) => (
+                        <SelectItem key={emp.employee_id} value={emp.employee_id}>
+                          {emp.employee_id} - {emp.first_name} {emp.last_name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
