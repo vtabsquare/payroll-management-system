@@ -52,7 +52,8 @@ function maskSalaryNotification(notification) {
 }
 
 function maskSalaries(req, res, next) {
-  if (!req.user || req.user.can_view_salaries) {
+  // Admins and users with can_view_salaries permission see all data unmasked
+  if (!req.user || req.user.can_view_salaries || req.user.role === 'admin') {
     return next();
   }
 
@@ -60,14 +61,26 @@ function maskSalaries(req, res, next) {
 
   res.json = function (data) {
     if (data && typeof data === "object") {
+      // For employee role: don't mask their own profile data
+      if (data.profile && typeof data.profile === "object") {
+        // Profile is always the logged-in user's own data, so don't mask it
+        // Employees should see their own salary information
+        return originalJson(data);
+      }
+      
+      // For employee role: don't mask their own payroll records
+      if (data.payroll && Array.isArray(data.payroll)) {
+        // Payroll records are already filtered by canAccessRecord in the route
+        // So employees only get their own records - don't mask them
+        return originalJson(data);
+      }
+      
+      // Mask other data types (employees list, ledger, etc.) for non-admin users
       if (data.employees && Array.isArray(data.employees)) {
         data.employees = data.employees.map(maskEmployeeSalaries);
       }
       if (data.employee && typeof data.employee === "object") {
         data.employee = maskEmployeeSalaries(data.employee);
-      }
-      if (data.payroll && Array.isArray(data.payroll)) {
-        data.payroll = data.payroll.map(maskPayrollSalaries);
       }
       if (data.generated && Array.isArray(data.generated)) {
         data.generated = data.generated.map(maskPayrollSalaries);
@@ -80,9 +93,6 @@ function maskSalaries(req, res, next) {
       }
       if (data.notifications && Array.isArray(data.notifications)) {
         data.notifications = data.notifications.map(maskSalaryNotification);
-      }
-      if (data.profile && typeof data.profile === "object") {
-        data.profile = maskEmployeeSalaries(data.profile);
       }
     }
     return originalJson(data);
