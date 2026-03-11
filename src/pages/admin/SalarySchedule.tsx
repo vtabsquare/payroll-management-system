@@ -51,6 +51,7 @@ export default function SalarySchedule() {
     status: "",
   });
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
+  const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
 
   const filteredEmployees = useMemo(() => {
     if (!employeeSearchTerm.trim()) return employees;
@@ -357,48 +358,58 @@ export default function SalarySchedule() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="edit-employee">Employee</Label>
-              <div className="space-y-2">
+              <div className="relative">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
+                    id="edit-employee"
                     placeholder="Search by ID, name..."
-                    value={employeeSearchTerm}
-                    onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                    className="h-9 pl-9 pr-9"
+                    value={employeeSearchTerm || (editForm.employee_id ? employees.find(e => e.employee_id === editForm.employee_id)?.first_name + ' ' + employees.find(e => e.employee_id === editForm.employee_id)?.last_name + ' - ' + editForm.employee_id : '')}
+                    onChange={(e) => {
+                      setEmployeeSearchTerm(e.target.value);
+                      setShowEmployeeSuggestions(true);
+                      if (!e.target.value) {
+                        setEditForm({ ...editForm, employee_id: '' });
+                      }
+                    }}
+                    onFocus={() => setShowEmployeeSuggestions(true)}
+                    className="h-10 pl-9 pr-9"
                   />
                   {employeeSearchTerm && (
                     <X
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 cursor-pointer hover:text-foreground"
-                      onClick={() => setEmployeeSearchTerm("")}
+                      onClick={() => {
+                        setEmployeeSearchTerm("");
+                        setEditForm({ ...editForm, employee_id: '' });
+                        setShowEmployeeSuggestions(false);
+                      }}
                     />
                   )}
                 </div>
-                {employeeSearchTerm && filteredEmployees.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No employees found</p>
-                )}
-                <Select
-                  value={editForm.employee_id}
-                  onValueChange={(value) =>
-                    setEditForm({ ...editForm, employee_id: value })
-                  }
-                >
-                  <SelectTrigger id="edit-employee">
-                    <SelectValue placeholder={employeeSearchTerm ? "Select from filtered results" : "Select employee"} />
-                  </SelectTrigger>
-                  <SelectContent>
+                {showEmployeeSuggestions && (employeeSearchTerm || !editForm.employee_id) && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
                     {filteredEmployees.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
                         No employees found
                       </div>
                     ) : (
                       filteredEmployees.map((emp) => (
-                        <SelectItem key={emp.employee_id} value={emp.employee_id}>
-                          {emp.employee_id} - {emp.first_name} {emp.last_name}
-                        </SelectItem>
+                        <div
+                          key={emp.employee_id}
+                          className="px-3 py-2 cursor-pointer hover:bg-accent text-sm transition-colors"
+                          onClick={() => {
+                            setEditForm({ ...editForm, employee_id: emp.employee_id });
+                            setEmployeeSearchTerm('');
+                            setShowEmployeeSuggestions(false);
+                          }}
+                        >
+                          <div className="font-medium">{emp.first_name} {emp.last_name}</div>
+                          <div className="text-xs text-muted-foreground">{emp.employee_id}</div>
+                        </div>
                       ))
                     )}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -462,48 +473,58 @@ export default function SalarySchedule() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="create-employee">Employee</Label>
-              <div className="space-y-2">
+              <div className="relative">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
+                    id="create-employee"
                     placeholder="Search by ID, name..."
-                    value={employeeSearchTerm}
-                    onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                    className="h-9 pl-9 pr-9"
+                    value={employeeSearchTerm || (editForm.employee_id ? employees.find(e => e.employee_id === editForm.employee_id)?.first_name + ' ' + employees.find(e => e.employee_id === editForm.employee_id)?.last_name + ' - ' + editForm.employee_id : '')}
+                    onChange={(e) => {
+                      setEmployeeSearchTerm(e.target.value);
+                      setShowEmployeeSuggestions(true);
+                      if (!e.target.value) {
+                        setEditForm({ ...editForm, employee_id: '' });
+                      }
+                    }}
+                    onFocus={() => setShowEmployeeSuggestions(true)}
+                    className="h-10 pl-9 pr-9"
                   />
                   {employeeSearchTerm && (
                     <X
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 cursor-pointer hover:text-foreground"
-                      onClick={() => setEmployeeSearchTerm("")}
+                      onClick={() => {
+                        setEmployeeSearchTerm("");
+                        setEditForm({ ...editForm, employee_id: '' });
+                        setShowEmployeeSuggestions(false);
+                      }}
                     />
                   )}
                 </div>
-                {employeeSearchTerm && filteredEmployees.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No employees found</p>
-                )}
-                <Select
-                  value={editForm.employee_id}
-                  onValueChange={(value) =>
-                    setEditForm({ ...editForm, employee_id: value })
-                  }
-                >
-                  <SelectTrigger id="create-employee">
-                    <SelectValue placeholder={employeeSearchTerm ? "Select from filtered results" : "Select employee"} />
-                  </SelectTrigger>
-                  <SelectContent>
+                {showEmployeeSuggestions && (employeeSearchTerm || !editForm.employee_id) && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
                     {filteredEmployees.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
                         No employees found
                       </div>
                     ) : (
                       filteredEmployees.map((emp) => (
-                        <SelectItem key={emp.employee_id} value={emp.employee_id}>
-                          {emp.employee_id} - {emp.first_name} {emp.last_name}
-                        </SelectItem>
+                        <div
+                          key={emp.employee_id}
+                          className="px-3 py-2 cursor-pointer hover:bg-accent text-sm transition-colors"
+                          onClick={() => {
+                            setEditForm({ ...editForm, employee_id: emp.employee_id });
+                            setEmployeeSearchTerm('');
+                            setShowEmployeeSuggestions(false);
+                          }}
+                        >
+                          <div className="font-medium">{emp.first_name} {emp.last_name}</div>
+                          <div className="text-xs text-muted-foreground">{emp.employee_id}</div>
+                        </div>
                       ))
                     )}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle, ArrowUpDown, ArrowUp, ArrowDown, ArrowDownAZ } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,7 @@ export default function EmployeesPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [ledgerSortBy, setLedgerSortBy] = useState<'date' | 'employee' | 'amount' | null>(null);
   const [ledgerSortOrder, setLedgerSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const { toast } = useToast();
 
   const isMaskedValue = (value: unknown) => typeof value === "string" && value.includes("*");
@@ -503,7 +504,51 @@ export default function EmployeesPage() {
     },
   ];
 
+  const validateMandatoryFields = () => {
+    const requiredFields = [
+      { field: 'first_name', label: 'First Name' },
+      { field: 'last_name', label: 'Last Name' },
+      { field: 'company_email', label: 'Company Email' },
+      { field: 'phone', label: 'Phone' },
+      { field: 'aadhaar_number', label: 'Aadhaar Number' },
+      { field: 'pan_number', label: 'PAN Number' },
+      { field: 'employee_type', label: 'Employee Type' },
+      { field: 'designation', label: 'Designation' },
+    ];
+
+    const missingFields = requiredFields.filter(
+      ({ field }) => !formData[field as keyof Employee] || String(formData[field as keyof Employee]).trim() === ''
+    );
+
+    if (missingFields.length > 0) {
+      toast({
+        title: "Missing Required Fields",
+        description: `Please fill in: ${missingFields.map(f => f.label).join(', ')}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.company_email && !emailRegex.test(formData.company_email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSave = async () => {
+    // Validate mandatory fields
+    if (!validateMandatoryFields()) {
+      return;
+    }
+
     const data: Partial<Employee> = {
       employee_id: formData.employee_id || editing?.employee_id || "",
       first_name: formData.first_name || "",
@@ -812,24 +857,72 @@ export default function EmployeesPage() {
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left p-4 font-medium text-muted-foreground">
-                    <button
-                      onClick={() => {
-                        if (sortBy === 'name') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortBy('name');
-                          setSortOrder('asc');
-                        }
-                      }}
-                      className="flex items-center gap-1 hover:text-foreground transition-colors"
-                    >
-                      Employee
-                      {sortBy === 'name' ? (
-                        sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
-                      ) : (
-                        <ArrowUpDown className="w-4 h-4 opacity-50" />
+                    <div className="flex items-center gap-2">
+                      <span>Employee</span>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowSortDropdown(!showSortDropdown)}
+                          className="flex items-center gap-1 hover:text-foreground transition-colors p-1 rounded hover:bg-accent"
+                          title="Sort options"
+                        >
+                          <ArrowDownAZ className="w-4 h-4" />
+                        </button>
+                        {showSortDropdown && (
+                          <div className="absolute left-0 top-full mt-1 bg-popover border border-border rounded-md shadow-lg z-50 min-w-[160px]">
+                            <button
+                              onClick={() => {
+                                setSortBy('name');
+                                setSortOrder('asc');
+                                setShowSortDropdown(false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                              Sort by Name (A-Z)
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSortBy('name');
+                                setSortOrder('desc');
+                                setShowSortDropdown(false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                              Sort by Name (Z-A)
+                            </button>
+                            <div className="border-t border-border my-1"></div>
+                            <button
+                              onClick={() => {
+                                setSortBy('id');
+                                setSortOrder('asc');
+                                setShowSortDropdown(false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                              Sort by ID (Ascending)
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSortBy('id');
+                                setSortOrder('desc');
+                                setShowSortDropdown(false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors flex items-center gap-2"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                              Sort by ID (Descending)
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {sortBy && (
+                        <span className="text-xs text-muted-foreground">
+                          ({sortBy === 'name' ? 'Name' : 'ID'} {sortOrder === 'asc' ? '↑' : '↓'})
+                        </span>
                       )}
-                    </button>
+                    </div>
                   </th>
                   <th className="text-center p-4 font-medium text-muted-foreground">Profile</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Gross Salary</th>
@@ -1467,9 +1560,11 @@ export default function EmployeesPage() {
                   <Button 
                     type="button"
                     onClick={handleSave}
+                    disabled={!formData.employee_type || !formData.designation || !formData.base_salary}
                     className="h-11 px-6 gradient-primary text-primary-foreground border-0"
                   >
-                    Save Changes
+                    <Check className="w-4 h-4 mr-2" />
+                    {editing ? "Save Changes" : "Create Employee"}
                   </Button>
                 )}
               </div>
