@@ -106,6 +106,20 @@ class SheetsService {
       normalizedCurrent.every((item, index) => item === normalizedExpected[index]);
 
     if (!matches) {
+      const currentIsPrefixOfExpected =
+        normalizedCurrent.length < normalizedExpected.length &&
+        normalizedCurrent.every((item, index) => item === normalizedExpected[index]);
+
+      if (currentIsPrefixOfExpected) {
+        await this.sheetsApi.spreadsheets.values.update({
+          spreadsheetId: this.sheetId,
+          range: headerRange,
+          valueInputOption: "RAW",
+          requestBody: { values: [expected] },
+        });
+        return;
+      }
+
       throw new Error(
         `Sheet headers mismatch for ${sheetName}. Expected: ${normalizedExpected.join(", ")}. Found: ${normalizedCurrent.join(", ")}`
       );

@@ -76,6 +76,7 @@ const SHEET_HEADERS = {
     "year",
     "working_days",
     "paid_days",
+    "extra_days",
     "created_at",
   ],
   [SHEETS.INCENTIVE_LEDGER]: [
