@@ -144,13 +144,14 @@ class SheetsService {
     if (values.length < 2) return [];
 
     const headers = values[0];
+    const pk = this.getPrimaryKey(sheetName);
     return values.slice(1).map((row) => {
       const item = {};
       headers.forEach((header, index) => {
         item[header] = parseCell(row[index] ?? "");
       });
       return item;
-    });
+    }).filter((item) => String(item[pk] ?? "").trim() !== "");
   }
 
   async append(sheetName, rowData) {
@@ -247,9 +248,35 @@ class SheetsService {
     const rowIndex = rows.findIndex((item) => String(item[pk]) === String(id));
     if (rowIndex === -1) return false;
 
-    await this.sheetsApi.spreadsheets.values.clear({
+    const spreadsheetMeta = await this.sheetsApi.spreadsheets.get({
       spreadsheetId: this.sheetId,
-      range: `${sheetName}!A${rowIndex + 2}:Z${rowIndex + 2}`,
+      fields: "sheets(properties(sheetId,title))",
+    });
+    const targetSheet = (spreadsheetMeta.data.sheets || []).find(
+      (sheet) => String(sheet?.properties?.title || "") === String(sheetName)
+    );
+    const targetSheetId = targetSheet?.properties?.sheetId;
+
+    if (targetSheetId === undefined || targetSheetId === null) {
+      throw new Error(`Sheet not found: ${sheetName}`);
+    }
+
+    await this.sheetsApi.spreadsheets.batchUpdate({
+      spreadsheetId: this.sheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: Number(targetSheetId),
+                dimension: "ROWS",
+                startIndex: rowIndex + 1, // zero-based, includes header row at index 0
+                endIndex: rowIndex + 2,
+              },
+            },
+          },
+        ],
+      },
     });
 
     return true;

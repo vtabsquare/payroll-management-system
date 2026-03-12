@@ -48,6 +48,56 @@ function getEmployeeLedgerBalance(ledgerRows, employeeId) {
   return roundCurrency(Number(rows[rows.length - 1].running_balance || 0));
 }
 
+async function recalculateLedgerTotals() {
+  const ledgerRows = await db.getAll(SHEETS.INCENTIVE_LEDGER);
+
+  const byEmployee = new Map();
+  for (const entry of ledgerRows) {
+    const empId = String(entry.employee_id || "").trim();
+    if (!empId) continue;
+    if (!byEmployee.has(empId)) {
+      byEmployee.set(empId, []);
+    }
+    byEmployee.get(empId).push(entry);
+  }
+
+  const updates = [];
+  for (const [, entries] of byEmployee.entries()) {
+    entries.sort((a, b) => {
+      const diff = ledgerSortValue(a) - ledgerSortValue(b);
+      if (diff !== 0) return diff;
+      return Number(a.ledger_id) - Number(b.ledger_id);
+    });
+
+    let runningBalance = 0;
+    for (const entry of entries) {
+      const normalized = normalizeLedgerRow(entry);
+      runningBalance = normalized.entry_type === "payout"
+        ? roundCurrency(runningBalance - normalized.amount)
+        : roundCurrency(runningBalance + normalized.amount);
+
+      updates.push({
+        ledger_id: entry.ledger_id,
+        running_balance: runningBalance,
+        status: runningBalance <= 0 ? "paid" : normalized.entry_type === "payout" ? "partially_paid" : "not_paid",
+      });
+    }
+  }
+
+  for (const update of updates) {
+    const current = ledgerRows.find((e) => String(e.ledger_id) === String(update.ledger_id));
+    if (current) {
+      await db.updateById(SHEETS.INCENTIVE_LEDGER, update.ledger_id, {
+        ...current,
+        running_balance: update.running_balance,
+        status: update.status,
+      });
+    }
+  }
+
+  return updates.length;
+}
+
 function canAccessRecord(user, record, users, employees) {
   if (user.role === "admin") return true;
 
@@ -547,56 +597,11 @@ router.post("/:id/send-payslip", authorize("admin"), async (req, res) => {
  */
 router.post("/incentive-ledger/recalculate-totals", authorize("admin"), async (req, res) => {
   try {
-    const ledgerRows = await db.getAll(SHEETS.INCENTIVE_LEDGER);
-
-    // Group entries by employee_id
-    const byEmployee = new Map();
-    for (const entry of ledgerRows) {
-      const empId = String(entry.employee_id);
-      if (!byEmployee.has(empId)) {
-        byEmployee.set(empId, []);
-      }
-      byEmployee.get(empId).push(entry);
-    }
-
-    // Sort each employee's entries by year/month and recalculate running balances
-    const updates = [];
-    for (const [, entries] of byEmployee.entries()) {
-      entries.sort((a, b) => {
-        const diff = ledgerSortValue(a) - ledgerSortValue(b);
-        if (diff !== 0) return diff;
-        return Number(a.ledger_id) - Number(b.ledger_id);
-      });
-
-      let runningBalance = 0;
-      for (const entry of entries) {
-        const normalized = normalizeLedgerRow(entry);
-        runningBalance = normalized.entry_type === "payout"
-          ? roundCurrency(runningBalance - normalized.amount)
-          : roundCurrency(runningBalance + normalized.amount);
-
-        updates.push({
-          ledger_id: entry.ledger_id,
-          running_balance: runningBalance,
-          status: runningBalance <= 0 ? "paid" : normalized.entry_type === "payout" ? "partially_paid" : "not_paid",
-        });
-      }
-    }
-
-    for (const update of updates) {
-      const current = ledgerRows.find((e) => String(e.ledger_id) === String(update.ledger_id));
-      if (current) {
-        await db.updateById(SHEETS.INCENTIVE_LEDGER, update.ledger_id, {
-          ...current,
-          running_balance: update.running_balance,
-          status: update.status,
-        });
-      }
-    }
+    const updatedCount = await recalculateLedgerTotals();
 
     return res.json({
       message: "Successfully recalculated running balances for all ledger entries",
-      updatedCount: updates.length,
+      updatedCount,
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to recalculate totals" });
@@ -642,6 +647,8 @@ router.delete("/:payroll_id", authorize("admin"), async (req, res) => {
     for (const entry of relatedEntries) {
       await db.deleteById(SHEETS.INCENTIVE_LEDGER, entry.ledger_id);
     }
+
+    await recalculateLedgerTotals();
 
     return res.json({
       message: "Payroll record deleted successfully",
@@ -700,6 +707,8 @@ router.delete("/period/:month/:year", authorize("admin"), async (req, res) => {
     for (const entry of relatedEntries) {
       await db.deleteById(SHEETS.INCENTIVE_LEDGER, entry.ledger_id);
     }
+
+    await recalculateLedgerTotals();
 
     return res.json({
       message: `Successfully deleted all payroll records for ${monthNum}/${yearNum}`,
