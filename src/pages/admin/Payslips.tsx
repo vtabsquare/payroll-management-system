@@ -59,11 +59,22 @@ export default function PayslipsPage() {
     return Array.from(map.entries()).map(([empId, employeeName]) => ({ empId, employeeName }));
   }, [records]);
 
+  const safeEmployeeOptions = useMemo(
+    () => employeeOptions.filter((option) => typeof option.empId === "string" && option.empId.trim().length > 0),
+    [employeeOptions]
+  );
+
   const yearOptions = useMemo(() => {
     const years = new Set<number>();
     records.forEach((record) => years.add(record.year));
     return Array.from(years).sort((a, b) => b - a);
   }, [records]);
+
+  useEffect(() => {
+    if (employeeFilter !== "all" && !safeEmployeeOptions.some((option) => option.empId === employeeFilter)) {
+      setEmployeeFilter("all");
+    }
+  }, [employeeFilter, safeEmployeeOptions]);
 
   useEffect(() => {
     const loadPayslips = async () => {
@@ -123,7 +134,7 @@ export default function PayslipsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Employees</SelectItem>
-              {employeeOptions.filter((option) => option.empId).map((option) => (
+              {safeEmployeeOptions.map((option) => (
                 <SelectItem key={option.empId} value={option.empId}>
                   {option.employeeName}
                 </SelectItem>
