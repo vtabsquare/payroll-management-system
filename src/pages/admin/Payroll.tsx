@@ -231,7 +231,7 @@ export default function PayrollPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Employees</SelectItem>
-              {employeeOptions.map((option) => (
+              {employeeOptions.filter((option) => option.empId).map((option) => (
                 <SelectItem key={option.empId} value={option.empId}>
                   {option.employeeName}
                 </SelectItem>

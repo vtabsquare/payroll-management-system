@@ -1174,7 +1174,7 @@ export default function EmployeesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Employees</SelectItem>
-                {ledgerEmployeeOptions.map((emp) => (
+                {ledgerEmployeeOptions.filter((emp) => emp.id).map((emp) => (
                   <SelectItem key={emp.id} value={emp.id}>
                     {emp.name}
                   </SelectItem>
