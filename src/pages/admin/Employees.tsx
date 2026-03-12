@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type Employee } from "@/lib/payroll";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,6 +41,9 @@ export default function EmployeesPage() {
   const [ledgerSortBy, setLedgerSortBy] = useState<'date' | 'employee' | 'amount' | null>(null);
   const [ledgerSortOrder, setLedgerSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [ledgerMonthFilter, setLedgerMonthFilter] = useState<string>("all");
+  const [ledgerYearFilter, setLedgerYearFilter] = useState<string>("all");
+  const [ledgerEmployeeFilter, setLedgerEmployeeFilter] = useState<string>("all");
   const { toast } = useToast();
 
   // Get unique designations from existing employees
@@ -194,6 +198,21 @@ export default function EmployeesPage() {
   const filteredLedger = useMemo(() => {
     let result = incentiveLedger;
     
+    // Apply month filter
+    if (ledgerMonthFilter !== "all") {
+      result = result.filter((entry) => String(entry.month) === ledgerMonthFilter);
+    }
+    
+    // Apply year filter
+    if (ledgerYearFilter !== "all") {
+      result = result.filter((entry) => String(entry.year) === ledgerYearFilter);
+    }
+    
+    // Apply employee filter
+    if (ledgerEmployeeFilter !== "all") {
+      result = result.filter((entry) => entry.employee_id === ledgerEmployeeFilter);
+    }
+    
     // Apply search filter
     const query = search.trim().toLowerCase();
     if (query) {
@@ -241,7 +260,7 @@ export default function EmployeesPage() {
     }
     
     return result;
-  }, [incentiveLedger, search, list, ledgerSortBy, ledgerSortOrder]);
+  }, [incentiveLedger, search, list, ledgerSortBy, ledgerSortOrder, ledgerMonthFilter, ledgerYearFilter, ledgerEmployeeFilter]);
 
   const ledgerSummary = useMemo(() => {
     const byEmployee = new Map<string, IncentiveLedgerEntry[]>();
@@ -280,6 +299,30 @@ export default function EmployeesPage() {
       latestPayoutDate,
     };
   }, [filteredLedger]);
+
+  const ledgerMonthOptions = useMemo(() => {
+    const months = new Set<number>();
+    incentiveLedger.forEach((entry) => months.add(Number(entry.month)));
+    return Array.from(months).sort((a, b) => a - b);
+  }, [incentiveLedger]);
+
+  const ledgerYearOptions = useMemo(() => {
+    const years = new Set<number>();
+    incentiveLedger.forEach((entry) => years.add(Number(entry.year)));
+    return Array.from(years).sort((a, b) => b - a);
+  }, [incentiveLedger]);
+
+  const ledgerEmployeeOptions = useMemo(() => {
+    const employees = new Map<string, string>();
+    incentiveLedger.forEach((entry) => {
+      if (!employees.has(entry.employee_id)) {
+        employees.set(entry.employee_id, entry.employee_name || entry.employee_id);
+      }
+    });
+    return Array.from(employees.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [incentiveLedger]);
 
   const payoutEmployeeOptions = useMemo(() => {
     const balances = new Map<string, number>();
@@ -1066,12 +1109,12 @@ export default function EmployeesPage() {
       </div>
 
       <div className="glass-card rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">Incentive Ledger</h3>
-            <p className="text-xs text-muted-foreground mt-1">Track deduction and payout transactions with running balance.</p>
-          </div>
-          <div className="flex gap-2">
+        <div className="p-4 border-b border-border bg-muted/20">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Incentive Ledger</h3>
+              <p className="text-xs text-muted-foreground mt-1">Track deduction and payout transactions with running balance.</p>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -1094,16 +1137,47 @@ export default function EmployeesPage() {
             >
               Recalculate Totals
             </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setPayoutOpen(true);
-                setPayoutDate(new Date().toISOString().slice(0, 10));
-              }}
-              className="gradient-primary text-primary-foreground border-0"
-            >
-              Pay Incentive
-            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <Select value={ledgerMonthFilter} onValueChange={setLedgerMonthFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Filter month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {ledgerMonthOptions.map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={ledgerYearFilter} onValueChange={setLedgerYearFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Filter year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {ledgerYearOptions.map((year) => (
+                  <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={ledgerEmployeeFilter} onValueChange={setLedgerEmployeeFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Filter employee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {ledgerEmployeeOptions.map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -1190,7 +1264,14 @@ export default function EmployeesPage() {
                     </td>
                     <td className="p-3 text-foreground">{`${String(entry.month).padStart(2, "0")}/${entry.year}`}</td>
                     <td className="p-3 text-foreground capitalize">{entry.entry_type}</td>
-                    <td className="p-3 text-right font-mono text-foreground">{displayCurrency(entry.amount)}</td>
+                    <td className="p-3 text-right">
+                      <div className={`font-mono ${entry.entry_type === 'payout' ? 'text-success font-semibold' : 'text-destructive'}`}>
+                        {entry.entry_type === 'payout' ? '+' : '-'}{displayCurrency(entry.amount)}
+                      </div>
+                      {entry.entry_type === 'payout' && entry.reference && entry.reference.includes('payroll') && (
+                        <div className="text-xs text-muted-foreground mt-0.5">via payroll</div>
+                      )}
+                    </td>
                     <td className="p-3 text-right font-mono text-foreground font-semibold">{displayCurrency(entry.running_balance)}</td>
                     <td className="p-3 text-center">
                       <Badge className={entry.status === "paid" ? "bg-success/10 text-success border-0" : entry.status === "partially_paid" ? "bg-warning/10 text-warning border-0" : "bg-muted text-foreground border-0"}>
