@@ -59,10 +59,22 @@ export default function IncentiveSelectionModal({
     }
   };
 
-  const handleAmountChange = (employeeId: string, value: string) => {
+  const handleAmountChange = (employeeId: string, value: string, maxBalance: number) => {
     const newAmounts = new Map(amounts);
-    newAmounts.set(employeeId, value);
-    setAmounts(newAmounts);
+    const numValue = Number(value);
+    
+    // Allow empty string for editing
+    if (value === "") {
+      newAmounts.set(employeeId, "");
+      setAmounts(newAmounts);
+      return;
+    }
+    
+    // Prevent entering values greater than max balance
+    if (!isNaN(numValue) && numValue <= maxBalance) {
+      newAmounts.set(employeeId, value);
+      setAmounts(newAmounts);
+    }
   };
 
   const getValidAmount = (employeeId: string, maxBalance: number): number => {
@@ -70,6 +82,12 @@ export default function IncentiveSelectionModal({
     const numValue = Number(inputValue);
     if (isNaN(numValue) || numValue <= 0) return 0;
     return Math.min(numValue, maxBalance);
+  };
+
+  const hasInvalidAmount = (employeeId: string, maxBalance: number): boolean => {
+    const inputValue = amounts.get(employeeId) || "0";
+    const numValue = Number(inputValue);
+    return !isNaN(numValue) && numValue > maxBalance;
   };
 
   const handleConfirm = () => {
@@ -133,11 +151,14 @@ export default function IncentiveSelectionModal({
                       max={balance.balance}
                       step="0.01"
                       value={amounts.get(balance.employee_id) || ""}
-                      onChange={(e) => handleAmountChange(balance.employee_id, e.target.value)}
+                      onChange={(e) => handleAmountChange(balance.employee_id, e.target.value, balance.balance)}
                       onClick={(e) => e.stopPropagation()}
-                      className="text-right"
+                      className={`text-right ${hasInvalidAmount(balance.employee_id, balance.balance) ? 'border-destructive' : ''}`}
                       placeholder="Enter amount"
                     />
+                    {hasInvalidAmount(balance.employee_id, balance.balance) && (
+                      <p className="text-xs text-destructive mt-1">Exceeds available balance</p>
+                    )}
                   </div>
                 </div>
               ))}
