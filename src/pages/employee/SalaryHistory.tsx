@@ -95,7 +95,7 @@ export default function SalaryHistory() {
           <SelectContent>
             <SelectItem value="all">All Years</SelectItem>
             {years.map((year) => (
-              <SelectItem key={year} value={year}>{year}</SelectItem>
+              <SelectItem key={year} value={String(year)}>{year}</SelectItem>
             ))}
           </SelectContent>
         </Select>
