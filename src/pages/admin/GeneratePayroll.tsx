@@ -8,6 +8,7 @@ import { monthNames, type PayrollRecord } from "@/lib/payroll";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/services/api";
+import IncentiveSelectionModal from "@/components/IncentiveSelectionModal";
 
 export default function GeneratePayroll() {
   const currentDate = new Date();
@@ -23,6 +24,9 @@ export default function GeneratePayroll() {
   const [checkingAttendance, setCheckingAttendance] = useState(false);
   const [attendanceExists, setAttendanceExists] = useState<boolean | null>(null);
   const [attendanceCount, setAttendanceCount] = useState(0);
+  const [showIncentiveModal, setShowIncentiveModal] = useState(false);
+  const [incentiveBalances, setIncentiveBalances] = useState<{ employee_id: string; employee_name: string; balance: number }[]>([]);
+  const [loadingBalances, setLoadingBalances] = useState(false);
   const { toast } = useToast();
 
   // Check attendance when month/year changes
@@ -56,8 +60,30 @@ export default function GeneratePayroll() {
     }
 
     try {
+      setLoadingBalances(true);
+      const balancesResponse = await api.getIncentiveBalances();
+      setIncentiveBalances(balancesResponse.balances);
+      setShowIncentiveModal(true);
+    } catch (error) {
+      toast({
+        title: "Failed to load incentive balances",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingBalances(false);
+    }
+  };
+
+  const handleIncentiveConfirm = async (selections: { employee_id: string; amount: number }[]) => {
+    try {
       setLoading(true);
-      const response = await api.generatePayroll({ month: Number(month), year: Number(year) });
+      setShowIncentiveModal(false);
+      const response = await api.generatePayroll({ 
+        month: Number(month), 
+        year: Number(year),
+        incentiveSelections: selections.length > 0 ? selections : undefined,
+      });
       setResults(response.generated);
       setGenerated(true);
 
@@ -67,9 +93,12 @@ export default function GeneratePayroll() {
           description: "Payroll already exists for all employees with attendance in this period.",
         });
       } else {
+        const incentiveMessage = selections.length > 0 
+          ? ` Incentives added for ${selections.length} ${selections.length === 1 ? 'employee' : 'employees'}.`
+          : '';
         toast({
           title: "Payroll generated",
-          description: `${response.count} records created. ${response.ledgerEntriesCreated} incentive ledger entries added. ${response.ledgerEntriesPaidOut} incentive payouts processed.`,
+          description: `${response.count} records created. ${response.ledgerEntriesCreated} incentive ledger entries added.${incentiveMessage}`,
         });
       }
     } catch (error) {
@@ -162,6 +191,14 @@ export default function GeneratePayroll() {
         )}
       </div>
 
+      <IncentiveSelectionModal
+        open={showIncentiveModal}
+        onClose={() => setShowIncentiveModal(false)}
+        onConfirm={handleIncentiveConfirm}
+        balances={incentiveBalances}
+        loading={loading}
+      />
+
       {generated && results.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <div className="flex items-center gap-2">
@@ -180,7 +217,7 @@ export default function GeneratePayroll() {
                   <th className="text-right p-4 font-medium text-muted-foreground">HRA</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Gross</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Incentive Ded.</th>
-                  <th className="text-right p-4 font-medium text-muted-foreground">Incentive Payout</th>
+                  <th className="text-right p-4 font-medium text-muted-foreground">Incentive Amount</th>
                   <th className="text-right p-4 font-medium text-muted-foreground">Net Pay</th>
                 </tr>
               </thead>
@@ -197,7 +234,7 @@ export default function GeneratePayroll() {
                       {formatCurrency(r.incentive_deduction)}
                     </td>
                     <td className="p-4 text-right font-mono text-success">
-                      {r.incentive_payout > 0 ? formatCurrency(r.incentive_payout) : "-"}
+                      {(r.incentive_amount || 0) > 0 ? formatCurrency(r.incentive_amount || 0) : "-"}
                     </td>
                     <td className="p-4 text-right font-mono font-semibold text-foreground">
                       {formatCurrency(r.net_salary)}

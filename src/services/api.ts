@@ -231,7 +231,12 @@ export const api = {
       `/attendance/check?month=${month}&year=${year}`
     ),
 
-  generatePayroll: (payload: { month: number; year: number }) =>
+  getIncentiveBalances: () =>
+    apiRequest<{ balances: { employee_id: string; employee_name: string; balance: number }[] }>(
+      "/payroll/incentive-balances"
+    ),
+
+  generatePayroll: (payload: { month: number; year: number; incentiveSelections?: { employee_id: string; amount: number }[] }) =>
     apiRequest<{ generated: PayrollRecord[]; count: number; ledgerEntriesCreated: number; ledgerEntriesPaidOut: number }>("/payroll/generate", {
       method: "POST",
       body: JSON.stringify(payload),

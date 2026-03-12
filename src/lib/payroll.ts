@@ -42,6 +42,7 @@ export interface PayrollRecord {
   special_pay: number;
   incentive_deduction: number;
   incentive_payout: number;
+  incentive_amount?: number;
   gross_salary: number;
   net_salary: number;
   payment_status: "Pending" | "Paid" | "Sent";

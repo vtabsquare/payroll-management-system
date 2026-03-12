@@ -23,6 +23,7 @@ export default function PayslipModal({ record, onClose }: Props) {
   ];
 
   const hasIncentivePayout = record.incentive_payout > 0;
+  const hasIncentiveAmount = (record.incentive_amount || 0) > 0;
 
   return (
     <Dialog open={!!record} onOpenChange={() => onClose()}>
@@ -77,7 +78,18 @@ export default function PayslipModal({ record, onClose }: Props) {
             ))}
           </div>
 
-          {/* Incentive Payout (if applicable) */}
+          {/* Incentive Amount (if applicable) */}
+          {hasIncentiveAmount && (
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Additional Earnings</h4>
+              <div className="payslip-row">
+                <span className="text-muted-foreground">Incentive Payout</span>
+                <span className="font-mono text-success">+{formatCurrency(record.incentive_amount || 0)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Incentive Payout (if applicable) - Legacy field */}
           {hasIncentivePayout && (
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Incentive Payout</h4>

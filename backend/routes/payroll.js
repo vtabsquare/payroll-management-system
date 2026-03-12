@@ -94,13 +94,14 @@ router.get("/", async (req, res) => {
 
 /**
  * POST /payroll/generate
- * Body: { month, year }
+ * Body: { month, year, incentiveSelections: [{ employee_id, amount }] }
  * Generates payroll from permanent attendance records.
  * Creates monthly payroll and incentive deduction ledger transactions.
+ * Optionally integrates incentive payouts into payroll.
  */
 router.post("/generate", authorize("admin"), async (req, res) => {
   try {
-    const { month, year } = req.body || {};
+    const { month, year, incentiveSelections } = req.body || {};
 
     if (!month || !year) {
       return res.status(400).json({ message: "month and year are required" });
@@ -115,6 +116,16 @@ router.post("/generate", authorize("admin"), async (req, res) => {
 
     if (!Number.isInteger(yearNum) || yearNum < 2000 || yearNum > 2100) {
       return res.status(400).json({ message: "year must be a valid year" });
+    }
+
+    // Parse incentive selections
+    const incentiveMap = new Map();
+    if (Array.isArray(incentiveSelections)) {
+      incentiveSelections.forEach((sel) => {
+        if (sel.employee_id && Number(sel.amount) > 0) {
+          incentiveMap.set(String(sel.employee_id), roundCurrency(Number(sel.amount)));
+        }
+      });
     }
 
     // Fetch all required data
@@ -183,6 +194,9 @@ router.post("/generate", authorize("admin"), async (req, res) => {
         incentive_payout: 0,
       });
 
+      // Get incentive amount for this employee if selected
+      const incentiveAmount = incentiveMap.get(String(emp.employee_id)) || 0;
+
       // Build payroll record
       const payrollRecord = {
         payroll_id: nextId([...existingPayroll, ...generated].map((item) => ({ id: item.payroll_id }))),
@@ -199,8 +213,9 @@ router.post("/generate", authorize("admin"), async (req, res) => {
         special_pay: breakdown.special_pay,
         incentive_deduction: breakdown.incentive_deduction,
         incentive_payout: breakdown.incentive_payout,
+        incentive_amount: incentiveAmount,
         gross_salary: breakdown.gross_salary,
-        net_salary: breakdown.net_salary,
+        net_salary: roundCurrency(breakdown.net_salary + incentiveAmount),
         payment_status: "Pending",
         payment_date: "",
         created_at: nowIso(),
@@ -228,6 +243,27 @@ router.post("/generate", authorize("admin"), async (req, res) => {
         };
         ledgerEntries.push(ledgerEntry);
       }
+
+      // Create payout ledger transaction if incentive was added to payroll
+      if (incentiveAmount > 0) {
+        const previousBalance = getEmployeeLedgerBalance([...incentiveLedger, ...ledgerEntries], emp.employee_id);
+        const runningBalance = roundCurrency(previousBalance - incentiveAmount);
+
+        const payoutEntry = {
+          ledger_id: nextId([...incentiveLedger, ...ledgerEntries].map((e) => ({ id: e.ledger_id }))),
+          employee_id: emp.employee_id,
+          month: monthNum,
+          year: yearNum,
+          entry_type: "payout",
+          amount: roundCurrency(incentiveAmount),
+          running_balance: runningBalance,
+          status: runningBalance <= 0 ? "paid" : "partially_paid",
+          reference: `Paid via ${monthNum}-${yearNum} payroll`,
+          transaction_date: `${String(yearNum).padStart(4, "0")}-${String(monthNum).padStart(2, "0")}-01`,
+          created_at: nowIso(),
+        };
+        ledgerEntries.push(payoutEntry);
+      }
     }
 
     // Persist payroll records
@@ -247,6 +283,31 @@ router.post("/generate", authorize("admin"), async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Payroll generation failed" });
+  }
+});
+
+router.get("/incentive-balances", authorize("admin"), async (_req, res) => {
+  try {
+    const [ledgerRows, employees] = await Promise.all([
+      db.getAll(SHEETS.INCENTIVE_LEDGER),
+      db.getAll(SHEETS.EMPLOYEES),
+    ]);
+
+    const balances = employees
+      .filter((emp) => String(emp.status).toLowerCase() === "active")
+      .map((emp) => {
+        const balance = getEmployeeLedgerBalance(ledgerRows, emp.employee_id);
+        return {
+          employee_id: emp.employee_id,
+          employee_name: `${emp.first_name || ""} ${emp.last_name || ""}`.trim(),
+          balance: balance,
+        };
+      })
+      .filter((item) => item.balance > 0);
+
+    return res.json({ balances });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to load incentive balances" });
   }
 });
 

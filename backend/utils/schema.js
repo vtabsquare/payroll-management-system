@@ -63,6 +63,7 @@ const SHEET_HEADERS = {
     "special_pay",
     "incentive_deduction",
     "incentive_payout",
+    "incentive_amount",
     "gross_salary",
     "net_salary",
     "payment_status",
