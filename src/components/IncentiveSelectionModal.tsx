@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { Loader2 } from "lucide-react";
 
@@ -27,12 +28,18 @@ export default function IncentiveSelectionModal({
   loading = false,
 }: IncentiveSelectionModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [amounts, setAmounts] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (open) {
       setSelected(new Set());
+      const initialAmounts = new Map<string, string>();
+      balances.forEach((b) => {
+        initialAmounts.set(b.employee_id, String(b.balance));
+      });
+      setAmounts(initialAmounts);
     }
-  }, [open]);
+  }, [open, balances]);
 
   const toggleSelection = (employeeId: string) => {
     const newSelected = new Set(selected);
@@ -52,13 +59,27 @@ export default function IncentiveSelectionModal({
     }
   };
 
+  const handleAmountChange = (employeeId: string, value: string) => {
+    const newAmounts = new Map(amounts);
+    newAmounts.set(employeeId, value);
+    setAmounts(newAmounts);
+  };
+
+  const getValidAmount = (employeeId: string, maxBalance: number): number => {
+    const inputValue = amounts.get(employeeId) || "0";
+    const numValue = Number(inputValue);
+    if (isNaN(numValue) || numValue <= 0) return 0;
+    return Math.min(numValue, maxBalance);
+  };
+
   const handleConfirm = () => {
     const selections = balances
       .filter((b) => selected.has(b.employee_id))
       .map((b) => ({
         employee_id: b.employee_id,
-        amount: b.balance,
-      }));
+        amount: getValidAmount(b.employee_id, b.balance),
+      }))
+      .filter((s) => s.amount > 0);
     onConfirm(selections);
   };
 
@@ -85,14 +106,14 @@ export default function IncentiveSelectionModal({
                   onCheckedChange={toggleAll}
                 />
                 <div className="flex-1 font-semibold text-sm">Employee</div>
-                <div className="w-32 font-semibold text-sm text-right">Balance</div>
+                <div className="w-40 font-semibold text-sm text-right">Available Balance</div>
+                <div className="w-40 font-semibold text-sm text-right">Amount to Pay</div>
               </div>
 
               {balances.map((balance) => (
                 <div
                   key={balance.employee_id}
-                  className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => toggleSelection(balance.employee_id)}
+                  className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <Checkbox
                     checked={selected.has(balance.employee_id)}
@@ -102,8 +123,21 @@ export default function IncentiveSelectionModal({
                     <p className="font-medium">{balance.employee_name}</p>
                     <p className="text-xs text-muted-foreground">{balance.employee_id}</p>
                   </div>
-                  <div className="w-32 text-right font-semibold text-green-600">
+                  <div className="w-40 text-right font-semibold text-green-600">
                     {formatCurrency(balance.balance)}
+                  </div>
+                  <div className="w-40">
+                    <Input
+                      type="number"
+                      min="0"
+                      max={balance.balance}
+                      step="0.01"
+                      value={amounts.get(balance.employee_id) || ""}
+                      onChange={(e) => handleAmountChange(balance.employee_id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-right"
+                      placeholder="Enter amount"
+                    />
                   </div>
                 </div>
               ))}
