@@ -603,4 +603,112 @@ router.post("/incentive-ledger/recalculate-totals", authorize("admin"), async (r
   }
 });
 
+/**
+ * DELETE /payroll/:payroll_id
+ * Delete a single payroll record and clean up related incentive ledger entries
+ */
+router.delete("/:payroll_id", authorize("admin"), async (req, res) => {
+  try {
+    const { payroll_id } = req.params;
+
+    if (!payroll_id) {
+      return res.status(400).json({ message: "payroll_id is required" });
+    }
+
+    // Get the payroll record to find related ledger entries
+    const payrollRecords = await db.getAll(SHEETS.PAYROLL);
+    const payrollRecord = payrollRecords.find((p) => String(p.payroll_id) === String(payroll_id));
+
+    if (!payrollRecord) {
+      return res.status(404).json({ message: "Payroll record not found" });
+    }
+
+    const employeeId = String(payrollRecord.employee_id);
+    const month = Number(payrollRecord.month);
+    const year = Number(payrollRecord.year);
+
+    // Delete the payroll record
+    await db.deleteById(SHEETS.PAYROLL, payroll_id);
+
+    // Find and delete related incentive ledger entries (deduction and payout for this month/year/employee)
+    const ledgerEntries = await db.getAll(SHEETS.INCENTIVE_LEDGER);
+    const relatedEntries = ledgerEntries.filter(
+      (entry) =>
+        String(entry.employee_id) === employeeId &&
+        Number(entry.month) === month &&
+        Number(entry.year) === year
+    );
+
+    for (const entry of relatedEntries) {
+      await db.deleteById(SHEETS.INCENTIVE_LEDGER, entry.ledger_id);
+    }
+
+    return res.json({
+      message: "Payroll record deleted successfully",
+      deletedPayrollId: payroll_id,
+      deletedLedgerEntries: relatedEntries.length,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to delete payroll record" });
+  }
+});
+
+/**
+ * DELETE /payroll/period/:month/:year
+ * Delete all payroll records for a specific month/year and clean up related incentive ledger entries
+ */
+router.delete("/period/:month/:year", authorize("admin"), async (req, res) => {
+  try {
+    const { month, year } = req.params;
+
+    if (!month || !year) {
+      return res.status(400).json({ message: "month and year are required" });
+    }
+
+    const monthNum = Number(month);
+    const yearNum = Number(year);
+
+    if (!Number.isInteger(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({ message: "month must be between 1 and 12" });
+    }
+
+    if (!Number.isInteger(yearNum) || yearNum < 2000 || yearNum > 2100) {
+      return res.status(400).json({ message: "year must be a valid year" });
+    }
+
+    // Get all payroll records for this period
+    const payrollRecords = await db.getAll(SHEETS.PAYROLL);
+    const recordsToDelete = payrollRecords.filter(
+      (p) => Number(p.month) === monthNum && Number(p.year) === yearNum
+    );
+
+    if (recordsToDelete.length === 0) {
+      return res.status(404).json({ message: "No payroll records found for this period" });
+    }
+
+    // Delete all payroll records for this period
+    for (const record of recordsToDelete) {
+      await db.deleteById(SHEETS.PAYROLL, record.payroll_id);
+    }
+
+    // Find and delete all related incentive ledger entries for this period
+    const ledgerEntries = await db.getAll(SHEETS.INCENTIVE_LEDGER);
+    const relatedEntries = ledgerEntries.filter(
+      (entry) => Number(entry.month) === monthNum && Number(entry.year) === yearNum
+    );
+
+    for (const entry of relatedEntries) {
+      await db.deleteById(SHEETS.INCENTIVE_LEDGER, entry.ledger_id);
+    }
+
+    return res.json({
+      message: `Successfully deleted all payroll records for ${monthNum}/${yearNum}`,
+      deletedPayrollRecords: recordsToDelete.length,
+      deletedLedgerEntries: relatedEntries.length,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to delete payroll records" });
+  }
+});
+
 module.exports = router;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Mail, Lock, Eye, ArrowDownAZ, ArrowUp, ArrowDown } from "lucide-react";
+import { Download, Mail, Lock, Eye, ArrowDownAZ, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -115,6 +115,64 @@ export default function PayrollPage() {
     window.open(downloadUrl, "_blank", "noopener,noreferrer");
   };
 
+  const deleteRecord = async (payrollId: string, employeeName: string) => {
+    if (!confirm(`Are you sure you want to delete the payroll record for ${employeeName}? This will also remove related incentive ledger entries.`)) {
+      return;
+    }
+
+    try {
+      const response = await api.deletePayrollRecord(payrollId);
+      setRecords((prev) => prev.filter((r) => r.payroll_id !== payrollId));
+      toast({
+        title: "Payroll record deleted",
+        description: `Deleted payroll and ${response.deletedLedgerEntries} incentive ledger entries`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to delete record",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteAllForPeriod = async () => {
+    if (monthFilter === "all" || yearFilter === "all") {
+      toast({
+        title: "Please select a specific period",
+        description: "You must select both a month and year to delete all records for that period",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const month = Number(monthFilter);
+    const year = Number(yearFilter);
+    const periodName = `${monthNames[month - 1]} ${year}`;
+    const recordCount = records.filter((r) => r.month === month && r.year === year).length;
+
+    if (!confirm(`Are you sure you want to delete ALL ${recordCount} payroll records for ${periodName}? This will also remove all related incentive ledger entries. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await api.deletePayrollPeriod(month, year);
+      setRecords((prev) => prev.filter((r) => r.month !== month || r.year !== year));
+      toast({
+        title: "All payroll records deleted",
+        description: `Deleted ${response.deletedPayrollRecords} payroll records and ${response.deletedLedgerEntries} incentive ledger entries for ${periodName}`,
+      });
+      setMonthFilter("all");
+      setYearFilter("all");
+    } catch (error) {
+      toast({
+        title: "Failed to delete records",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
   const statusColor = (s: string) => {
     if (s === "Paid") return "bg-success/10 text-success border-0";
     if (s === "Sent") return "bg-info/10 text-info border-0";
@@ -129,6 +187,17 @@ export default function PayrollPage() {
           <p className="text-sm text-muted-foreground mt-1">{records.length} records</p>
         </div>
         <div className="flex items-center gap-3">
+          {monthFilter !== "all" && yearFilter !== "all" && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={deleteAllForPeriod}
+              className="gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete All for {monthNames[Number(monthFilter) - 1]} {yearFilter}
+            </Button>
+          )}
           <Select value={monthFilter} onValueChange={setMonthFilter}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Filter month" />
@@ -286,6 +355,15 @@ export default function PayrollPage() {
                           </Button>
                         </>
                       )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                        onClick={() => deleteRecord(r.payroll_id, r.employee_name)} 
+                        title="Delete Record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </td>
                 </motion.tr>

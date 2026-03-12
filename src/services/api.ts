@@ -251,6 +251,16 @@ export const api = {
     return apiRequest<{ payroll: PayrollRecord[] }>(`/payroll${suffix}`);
   },
 
+  deletePayrollRecord: (payrollId: string) =>
+    apiRequest<{ message: string; deletedPayrollId: string; deletedLedgerEntries: number }>(`/payroll/${payrollId}`, {
+      method: "DELETE",
+    }),
+
+  deletePayrollPeriod: (month: number, year: number) =>
+    apiRequest<{ message: string; deletedPayrollRecords: number; deletedLedgerEntries: number }>(`/payroll/period/${month}/${year}`, {
+      method: "DELETE",
+    }),
+
   getIncentiveLedger: () =>
     apiRequest<{ ledger: IncentiveLedgerEntry[] }>("/payroll/incentive-ledger"),
 
