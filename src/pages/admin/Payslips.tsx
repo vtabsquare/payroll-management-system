@@ -49,8 +49,11 @@ export default function PayslipsPage() {
   const employeeOptions = useMemo(() => {
     const map = new Map<string, string>();
     records.forEach((record) => {
-      if (!map.has(record.employee_id)) {
-        map.set(record.employee_id, record.employee_name);
+      const employeeId = String(record.employee_id || "").trim();
+      const employeeName = String(record.employee_name || "").trim();
+      if (!employeeId) return;
+      if (!map.has(employeeId)) {
+        map.set(employeeId, employeeName || employeeId);
       }
     });
     return Array.from(map.entries()).map(([empId, employeeName]) => ({ empId, employeeName }));

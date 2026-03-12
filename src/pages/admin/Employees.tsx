@@ -315,8 +315,11 @@ export default function EmployeesPage() {
   const ledgerEmployeeOptions = useMemo(() => {
     const employees = new Map<string, string>();
     incentiveLedger.forEach((entry) => {
-      if (!employees.has(entry.employee_id)) {
-        employees.set(entry.employee_id, entry.employee_name || entry.employee_id);
+      const employeeId = String(entry.employee_id || "").trim();
+      const employeeName = String(entry.employee_name || "").trim();
+      if (!employeeId) return;
+      if (!employees.has(employeeId)) {
+        employees.set(employeeId, employeeName || employeeId);
       }
     });
     return Array.from(employees.entries())
