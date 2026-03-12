@@ -169,15 +169,15 @@ export default function IncentiveSelectionModal({
         <DialogFooter className="border-t pt-4">
           <div className="flex items-center justify-between w-full">
             <div className="text-sm text-muted-foreground">
-              {selected.size} of {balances.length} selected
+              {balances.length > 0 ? `${selected.size} of ${balances.length} selected` : 'No incentive balances available'}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose} disabled={loading}>
                 Cancel
               </Button>
-              <Button onClick={handleConfirm} disabled={loading || selected.size === 0}>
+              <Button onClick={handleConfirm} disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Continue with {selected.size} {selected.size === 1 ? "employee" : "employees"}
+                {balances.length === 0 ? 'Continue without incentives' : `Continue with ${selected.size} ${selected.size === 1 ? "employee" : "employees"}`}
               </Button>
             </div>
           </div>
