@@ -654,12 +654,33 @@ router.delete("/bulk/delete", authorize("admin"), async (req, res) => {
       }
     }
 
+    // Get row positions for all records to delete, then sort by row number descending
+    // This ensures we delete from bottom to top, avoiding row shift issues
+    const payrollRowPositions = [];
     for (const record of recordsToDelete) {
-      await db.deleteById(SHEETS.PAYROLL, record.payroll_id);
+      const rowInfo = await db.getGoogleSheetRowById(SHEETS.PAYROLL, record.payroll_id);
+      if (rowInfo) {
+        payrollRowPositions.push({ id: record.payroll_id, rowNumber: rowInfo.rowNumber });
+      }
+    }
+    payrollRowPositions.sort((a, b) => b.rowNumber - a.rowNumber);
+
+    const ledgerRowPositions = [];
+    for (const ledgerId of ledgerIdsToDelete) {
+      const rowInfo = await db.getGoogleSheetRowById(SHEETS.INCENTIVE_LEDGER, ledgerId);
+      if (rowInfo) {
+        ledgerRowPositions.push({ id: ledgerId, rowNumber: rowInfo.rowNumber });
+      }
+    }
+    ledgerRowPositions.sort((a, b) => b.rowNumber - a.rowNumber);
+
+    // Delete in reverse row order (bottom to top)
+    for (const { id } of payrollRowPositions) {
+      await db.deleteById(SHEETS.PAYROLL, id);
     }
 
-    for (const ledgerId of ledgerIdsToDelete) {
-      await db.deleteById(SHEETS.INCENTIVE_LEDGER, ledgerId);
+    for (const { id } of ledgerRowPositions) {
+      await db.deleteById(SHEETS.INCENTIVE_LEDGER, id);
     }
 
     await recalculateLedgerTotals();

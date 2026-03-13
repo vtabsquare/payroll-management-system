@@ -21,6 +21,7 @@ export default function PayrollPage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [viewPayslip, setViewPayslip] = useState<PayrollRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
 
   const filtered = useMemo(() => {
@@ -216,6 +217,7 @@ export default function PayrollPage() {
       return;
     }
 
+    setDeleting(true);
     try {
       const response = await api.deletePayrollBulk(selectedIds);
       const deletedPayrollIds = Array.isArray(response.deletedPayrollIds)
@@ -234,6 +236,8 @@ export default function PayrollPage() {
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -284,9 +288,10 @@ export default function PayrollPage() {
               size="sm"
               onClick={deleteSelectedRecords}
               className="gap-2"
+              disabled={deleting}
             >
               <Trash2 className="w-4 h-4" />
-              Delete Selected ({selectedPayrollIds.size})
+              {deleting ? "Deleting..." : `Delete Selected (${selectedPayrollIds.size})`}
             </Button>
           )}
           {monthFilter !== "all" && yearFilter !== "all" && (
@@ -340,7 +345,15 @@ export default function PayrollPage() {
         </div>
       </div>
 
-      <div className="glass-card rounded-xl overflow-hidden">
+      <div className="glass-card rounded-xl overflow-hidden relative">
+        {deleting && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm font-medium text-muted-foreground">Deleting payroll records...</p>
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
