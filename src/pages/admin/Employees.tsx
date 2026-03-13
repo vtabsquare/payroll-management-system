@@ -1277,9 +1277,17 @@ export default function EmployeesPage() {
                     </td>
                     <td className="p-3 text-right font-mono text-foreground font-semibold">{displayCurrency(entry.running_balance)}</td>
                     <td className="p-3 text-center">
-                      <Badge className={entry.status === "paid" ? "bg-success/10 text-success border-0" : entry.status === "partially_paid" ? "bg-warning/10 text-warning border-0" : "bg-muted text-foreground border-0"}>
+                      <span
+                        className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold select-none pointer-events-none ${
+                          entry.status === "paid"
+                            ? "bg-success/10 text-success"
+                            : entry.status === "partially_paid"
+                              ? "bg-warning/10 text-warning"
+                              : "bg-muted text-foreground"
+                        }`}
+                      >
                         {entry.status.replace("_", " ")}
-                      </Badge>
+                      </span>
                     </td>
                     <td className="p-3 text-foreground">{entry.transaction_date || "-"}</td>
                     <td className="p-3 text-foreground">{entry.reference || "-"}</td>
