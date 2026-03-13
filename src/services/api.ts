@@ -261,6 +261,17 @@ export const api = {
       method: "DELETE",
     }),
 
+  deletePayrollBulk: (payrollIds: string[]) =>
+    apiRequest<{
+      message: string;
+      deletedPayrollRecords: number;
+      deletedLedgerEntries: number;
+      deletedPayrollIds: string[];
+    }>("/payroll/bulk/delete", {
+      method: "DELETE",
+      body: JSON.stringify({ payroll_ids: payrollIds }),
+    }),
+
   getIncentiveLedger: () =>
     apiRequest<{ ledger: IncentiveLedgerEntry[] }>("/payroll/incentive-ledger"),
 

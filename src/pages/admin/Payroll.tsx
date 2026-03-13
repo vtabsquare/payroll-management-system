@@ -12,6 +12,7 @@ import { api } from "@/services/api";
 
 export default function PayrollPage() {
   const [records, setRecords] = useState<PayrollRecord[]>([]);
+  const [selectedPayrollIds, setSelectedPayrollIds] = useState<Set<string>>(new Set());
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
@@ -76,6 +77,14 @@ export default function PayrollPage() {
     }
   }, [employeeFilter, safeEmployeeOptions]);
 
+  useEffect(() => {
+    const validIds = new Set(records.map((record) => String(record.payroll_id)));
+    setSelectedPayrollIds((prev) => {
+      const next = new Set(Array.from(prev).filter((id) => validIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [records]);
+
   const loadPayroll = async () => {
     try {
       setLoading(true);
@@ -137,6 +146,11 @@ export default function PayrollPage() {
     try {
       const response = await api.deletePayrollRecord(payrollId);
       setRecords((prev) => prev.filter((r) => r.payroll_id !== payrollId));
+      setSelectedPayrollIds((prev) => {
+        const next = new Set(prev);
+        next.delete(payrollId);
+        return next;
+      });
       toast({
         title: "Payroll record deleted",
         description: `Deleted payroll and ${response.deletedLedgerEntries} incentive ledger entries`,
@@ -187,10 +201,73 @@ export default function PayrollPage() {
     }
   };
 
+  const deleteSelectedRecords = async () => {
+    const selectedIds = Array.from(selectedPayrollIds) as string[];
+    if (selectedIds.length === 0) {
+      toast({
+        title: "No payroll selected",
+        description: "Please select at least one payroll record",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected payroll records? This will also remove related incentive ledger entries.`)) {
+      return;
+    }
+
+    try {
+      const response = await api.deletePayrollBulk(selectedIds);
+      const deletedPayrollIds = Array.isArray(response.deletedPayrollIds)
+        ? response.deletedPayrollIds.map((id) => String(id))
+        : selectedIds;
+      const deletedIds = new Set<string>(deletedPayrollIds);
+      setRecords((prev) => prev.filter((record) => !deletedIds.has(record.payroll_id)));
+      setSelectedPayrollIds(new Set<string>());
+      toast({
+        title: "Selected payroll records deleted",
+        description: `Deleted ${response.deletedPayrollRecords} payroll records and ${response.deletedLedgerEntries} incentive ledger entries`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to delete selected records",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
   const statusColor = (s: string) => {
     if (s === "Paid") return "bg-success/10 text-success border-0";
     if (s === "Sent") return "bg-info/10 text-info border-0";
     return "bg-warning/10 text-warning border-0";
+  };
+
+  const filteredPayrollIds = filtered.map((record) => String(record.payroll_id));
+  const allFilteredSelected = filteredPayrollIds.length > 0 && filteredPayrollIds.every((id) => selectedPayrollIds.has(id));
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedPayrollIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredPayrollIds.forEach((id) => next.delete(id));
+      } else {
+        filteredPayrollIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleRecordSelection = (payrollId: string) => {
+    setSelectedPayrollIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(payrollId)) {
+        next.delete(payrollId);
+      } else {
+        next.add(payrollId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -201,6 +278,17 @@ export default function PayrollPage() {
           <p className="text-sm text-muted-foreground mt-1">{records.length} records</p>
         </div>
         <div className="flex items-center gap-3">
+          {selectedPayrollIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={deleteSelectedRecords}
+              className="gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Selected ({selectedPayrollIds.size})
+            </Button>
+          )}
           {monthFilter !== "all" && yearFilter !== "all" && (
             <Button
               variant="destructive"
@@ -257,6 +345,15 @@ export default function PayrollPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
+                <th className="text-center p-4 font-medium text-muted-foreground w-10">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                    aria-label="Select all visible payroll records"
+                    className="h-4 w-4 cursor-pointer"
+                  />
+                </th>
                 <th className="text-left p-4 font-medium text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span>Employee</span>
@@ -340,6 +437,15 @@ export default function PayrollPage() {
                   transition={{ delay: i * 0.05 }}
                   className="border-b border-border/50 hover:bg-muted/20 transition-colors"
                 >
+                  <td className="p-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedPayrollIds.has(String(r.payroll_id))}
+                      onChange={() => toggleRecordSelection(String(r.payroll_id))}
+                      aria-label={`Select payroll record for ${r.employee_name}`}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                  </td>
                   <td className="p-4">
                     <div className="font-medium text-foreground">{r.employee_name}</div>
                     <div className="text-xs text-muted-foreground font-mono">{r.employee_id}</div>
@@ -384,7 +490,7 @@ export default function PayrollPage() {
               ))}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-muted-foreground">No payroll records found</td>
+                  <td colSpan={8} className="p-6 text-center text-muted-foreground">No payroll records found</td>
                 </tr>
               )}
             </tbody>

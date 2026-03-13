@@ -609,6 +609,73 @@ router.post("/incentive-ledger/recalculate-totals", authorize("admin"), async (r
 });
 
 /**
+ * DELETE /payroll/bulk/delete
+ * Delete selected payroll records and clean up related incentive ledger entries
+ * Body: { payroll_ids: string[] }
+ */
+router.delete("/bulk/delete", authorize("admin"), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.payroll_ids)
+      ? req.body.payroll_ids.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+
+    if (ids.length === 0) {
+      return res.status(400).json({ message: "payroll_ids array is required" });
+    }
+
+    const uniqueIds = Array.from(new Set(ids));
+    const payrollRecords = await db.getAll(SHEETS.PAYROLL);
+    const payrollById = new Map(payrollRecords.map((record) => [String(record.payroll_id), record]));
+
+    const recordsToDelete = uniqueIds
+      .map((id) => payrollById.get(id))
+      .filter(Boolean);
+
+    if (recordsToDelete.length === 0) {
+      return res.status(404).json({ message: "No matching payroll records found" });
+    }
+
+    const ledgerEntries = await db.getAll(SHEETS.INCENTIVE_LEDGER);
+    const ledgerIdsToDelete = new Set();
+
+    for (const record of recordsToDelete) {
+      const employeeId = String(record.employee_id);
+      const month = Number(record.month);
+      const year = Number(record.year);
+
+      for (const entry of ledgerEntries) {
+        if (
+          String(entry.employee_id) === employeeId &&
+          Number(entry.month) === month &&
+          Number(entry.year) === year
+        ) {
+          ledgerIdsToDelete.add(String(entry.ledger_id));
+        }
+      }
+    }
+
+    for (const record of recordsToDelete) {
+      await db.deleteById(SHEETS.PAYROLL, record.payroll_id);
+    }
+
+    for (const ledgerId of ledgerIdsToDelete) {
+      await db.deleteById(SHEETS.INCENTIVE_LEDGER, ledgerId);
+    }
+
+    await recalculateLedgerTotals();
+
+    return res.json({
+      message: "Selected payroll records deleted successfully",
+      deletedPayrollRecords: recordsToDelete.length,
+      deletedLedgerEntries: ledgerIdsToDelete.size,
+      deletedPayrollIds: recordsToDelete.map((record) => record.payroll_id),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to delete selected payroll records" });
+  }
+});
+
+/**
  * DELETE /payroll/:payroll_id
  * Delete a single payroll record and clean up related incentive ledger entries
  */
