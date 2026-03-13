@@ -48,6 +48,8 @@ class SheetsService {
     };
 
     this.sheetsApi = null;
+    this.cache = new Map();
+    this.cacheTtlMs = Number(process.env.SHEETS_CACHE_MS || 3000);
     if (this.useGoogleSheets) {
       const auth = new google.auth.JWT({
         email: this.clientEmail,
@@ -56,6 +58,36 @@ class SheetsService {
       });
       this.sheetsApi = google.sheets({ version: "v4", auth });
     }
+  }
+
+  cacheKey(sheetName, withRowNumbers = false) {
+    return `${sheetName}::${withRowNumbers ? "withRows" : "rows"}`;
+  }
+
+  getFromCache(sheetName, withRowNumbers = false) {
+    if (!this.cacheTtlMs) return null;
+    const key = this.cacheKey(sheetName, withRowNumbers);
+    const cached = this.cache.get(key);
+    if (!cached) return null;
+    if (cached.expiresAt < Date.now()) {
+      this.cache.delete(key);
+      return null;
+    }
+    return cached.data;
+  }
+
+  setCache(sheetName, data, withRowNumbers = false) {
+    if (!this.cacheTtlMs) return;
+    const key = this.cacheKey(sheetName, withRowNumbers);
+    this.cache.set(key, {
+      data,
+      expiresAt: Date.now() + this.cacheTtlMs,
+    });
+  }
+
+  invalidateCache(sheetName) {
+    this.cache.delete(this.cacheKey(sheetName, false));
+    this.cache.delete(this.cacheKey(sheetName, true));
   }
 
   getPrimaryKey(sheetName) {
@@ -127,6 +159,10 @@ class SheetsService {
   }
 
   async getAll(sheetName) {
+    const cached = this.getFromCache(sheetName, false);
+    if (cached) {
+      return cached.map((item) => ({ ...item }));
+    }
     if (!this.useGoogleSheets) {
       this.ensureAvailable();
       return [...(this.memoryStore[sheetName] || [])];
@@ -145,23 +181,32 @@ class SheetsService {
 
     const headers = values[0];
     const pk = this.getPrimaryKey(sheetName);
-    return values.slice(1).map((row) => {
+    const rows = values.slice(1).map((row) => {
       const item = {};
       headers.forEach((header, index) => {
         item[header] = parseCell(row[index] ?? "");
       });
       return item;
     }).filter((item) => String(item[pk] ?? "").trim() !== "");
+
+    this.setCache(sheetName, rows, false);
+    return rows.map((item) => ({ ...item }));
   }
 
   async getAllWithRowNumbers(sheetName) {
+    const cached = this.getFromCache(sheetName, true);
+    if (cached) {
+      return cached.map((row) => ({ rowNumber: row.rowNumber, item: { ...row.item } }));
+    }
     if (!this.useGoogleSheets) {
       this.ensureAvailable();
       const rows = this.memoryStore[sheetName] || [];
-      return rows.map((item, index) => ({
+      const mapped = rows.map((item, index) => ({
         rowNumber: index + 2,
         item: { ...item },
       }));
+      this.setCache(sheetName, mapped, true);
+      return mapped.map((row) => ({ rowNumber: row.rowNumber, item: { ...row.item } }));
     }
 
     await this.ensureHeaders(sheetName);
@@ -192,7 +237,8 @@ class SheetsService {
       });
     }
 
-    return rows;
+    this.setCache(sheetName, rows, true);
+    return rows.map((row) => ({ rowNumber: row.rowNumber, item: { ...row.item } }));
   }
 
   async getGoogleSheetRowById(sheetName, id) {
@@ -249,6 +295,7 @@ class SheetsService {
       requestBody: { values: [row] },
     });
 
+    this.invalidateCache(sheetName);
     return rowData;
   }
 
@@ -279,6 +326,7 @@ class SheetsService {
       requestBody: { values: [values] },
     });
 
+    this.invalidateCache(sheetName);
     return updated;
   }
 
@@ -299,6 +347,8 @@ class SheetsService {
       valueInputOption: "RAW",
       requestBody: { values },
     });
+
+    this.invalidateCache(sheetName);
   }
 
   async findById(sheetName, id) {
@@ -352,6 +402,7 @@ class SheetsService {
       },
     });
 
+    this.invalidateCache(sheetName);
     return true;
   }
 
@@ -407,6 +458,7 @@ class SheetsService {
       },
     });
 
+    this.invalidateCache(sheetName);
     return true;
   }
 }
