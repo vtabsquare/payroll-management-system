@@ -624,64 +624,44 @@ router.delete("/bulk/delete", authorize("admin"), async (req, res) => {
     }
 
     const uniqueIds = Array.from(new Set(ids));
-    const payrollRecords = await db.getAll(SHEETS.PAYROLL);
-    const payrollById = new Map(payrollRecords.map((record) => [String(record.payroll_id), record]));
+    const payrollRows = await db.getAllWithRowNumbers(SHEETS.PAYROLL);
+    const payrollById = new Map(
+      payrollRows.map(({ rowNumber, item }) => [String(item.payroll_id), { rowNumber, item }])
+    );
 
-    const recordsToDelete = uniqueIds
-      .map((id) => payrollById.get(id))
-      .filter(Boolean);
+    const recordsToDelete = [];
+    const payrollRowNumbersToDelete = [];
+    for (const id of uniqueIds) {
+      const match = payrollById.get(id);
+      if (match) {
+        recordsToDelete.push(match.item);
+        payrollRowNumbersToDelete.push(match.rowNumber);
+      }
+    }
 
     if (recordsToDelete.length === 0) {
       return res.status(404).json({ message: "No matching payroll records found" });
     }
 
-    const ledgerEntries = await db.getAll(SHEETS.INCENTIVE_LEDGER);
+    const ledgerRows = await db.getAllWithRowNumbers(SHEETS.INCENTIVE_LEDGER);
+    const ledgerMatchKeys = new Set(
+      recordsToDelete.map((record) =>
+        `${String(record.employee_id)}-${Number(record.month)}-${Number(record.year)}`
+      )
+    );
+
+    const ledgerRowNumbersToDelete = [];
     const ledgerIdsToDelete = new Set();
-
-    for (const record of recordsToDelete) {
-      const employeeId = String(record.employee_id);
-      const month = Number(record.month);
-      const year = Number(record.year);
-
-      for (const entry of ledgerEntries) {
-        if (
-          String(entry.employee_id) === employeeId &&
-          Number(entry.month) === month &&
-          Number(entry.year) === year
-        ) {
-          ledgerIdsToDelete.add(String(entry.ledger_id));
-        }
+    for (const { rowNumber, item } of ledgerRows) {
+      const key = `${String(item.employee_id)}-${Number(item.month)}-${Number(item.year)}`;
+      if (ledgerMatchKeys.has(key)) {
+        ledgerRowNumbersToDelete.push(rowNumber);
+        ledgerIdsToDelete.add(String(item.ledger_id));
       }
     }
 
-    // Get row positions for all records to delete, then sort by row number descending
-    // This ensures we delete from bottom to top, avoiding row shift issues
-    const payrollRowPositions = [];
-    for (const record of recordsToDelete) {
-      const rowInfo = await db.getGoogleSheetRowById(SHEETS.PAYROLL, record.payroll_id);
-      if (rowInfo) {
-        payrollRowPositions.push({ id: record.payroll_id, rowNumber: rowInfo.rowNumber });
-      }
-    }
-    payrollRowPositions.sort((a, b) => b.rowNumber - a.rowNumber);
-
-    const ledgerRowPositions = [];
-    for (const ledgerId of ledgerIdsToDelete) {
-      const rowInfo = await db.getGoogleSheetRowById(SHEETS.INCENTIVE_LEDGER, ledgerId);
-      if (rowInfo) {
-        ledgerRowPositions.push({ id: ledgerId, rowNumber: rowInfo.rowNumber });
-      }
-    }
-    ledgerRowPositions.sort((a, b) => b.rowNumber - a.rowNumber);
-
-    // Delete in reverse row order (bottom to top)
-    for (const { id } of payrollRowPositions) {
-      await db.deleteById(SHEETS.PAYROLL, id);
-    }
-
-    for (const { id } of ledgerRowPositions) {
-      await db.deleteById(SHEETS.INCENTIVE_LEDGER, id);
-    }
+    await db.deleteRowsByRowNumbers(SHEETS.PAYROLL, payrollRowNumbersToDelete);
+    await db.deleteRowsByRowNumbers(SHEETS.INCENTIVE_LEDGER, ledgerRowNumbersToDelete);
 
     await recalculateLedgerTotals();
 
