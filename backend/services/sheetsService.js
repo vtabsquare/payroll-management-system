@@ -154,6 +154,41 @@ class SheetsService {
     }).filter((item) => String(item[pk] ?? "").trim() !== "");
   }
 
+  async getGoogleSheetRowById(sheetName, id) {
+    await this.ensureHeaders(sheetName);
+    const range = `${sheetName}!A:Z`;
+    const result = await this.sheetsApi.spreadsheets.values.get({
+      spreadsheetId: this.sheetId,
+      range,
+    });
+
+    const values = result.data.values || [];
+    if (values.length < 2) return null;
+
+    const headers = values[0];
+    const pk = this.getPrimaryKey(sheetName);
+    const pkIndex = headers.findIndex((header) => String(header) === String(pk));
+    if (pkIndex === -1) {
+      throw new Error(`Primary key column not found for ${sheetName}`);
+    }
+
+    for (let i = 1; i < values.length; i += 1) {
+      const row = values[i] || [];
+      if (String(row[pkIndex] ?? "").trim() === String(id)) {
+        const item = {};
+        headers.forEach((header, index) => {
+          item[header] = parseCell(row[index] ?? "");
+        });
+        return {
+          rowNumber: i + 1,
+          item,
+        };
+      }
+    }
+
+    return null;
+  }
+
   async append(sheetName, rowData) {
     if (!this.useGoogleSheets) {
       this.ensureAvailable();
@@ -188,19 +223,17 @@ class SheetsService {
     }
 
     await this.ensureHeaders(sheetName);
-    const rows = await this.getAll(sheetName);
+    const rowMatch = await this.getGoogleSheetRowById(sheetName, id);
     const headers = SHEET_HEADERS[sheetName];
-    const rowIndex = rows.findIndex((item) => String(item[pk]) === String(id));
+    if (!rowMatch) return null;
 
-    if (rowIndex === -1) return null;
-
-    const updated = { ...rows[rowIndex], ...updates };
+    const updated = { ...rowMatch.item, ...updates };
     const values = headers.map((header) => normalizeValue(updated[header]));
     const endColumn = columnLetter(headers.length - 1);
 
     await this.sheetsApi.spreadsheets.values.update({
       spreadsheetId: this.sheetId,
-      range: `${sheetName}!A${rowIndex + 2}:${endColumn}${rowIndex + 2}`,
+      range: `${sheetName}!A${rowMatch.rowNumber}:${endColumn}${rowMatch.rowNumber}`,
       valueInputOption: "RAW",
       requestBody: { values: [values] },
     });
@@ -244,9 +277,8 @@ class SheetsService {
     }
 
     await this.ensureHeaders(sheetName);
-    const rows = await this.getAll(sheetName);
-    const rowIndex = rows.findIndex((item) => String(item[pk]) === String(id));
-    if (rowIndex === -1) return false;
+    const rowMatch = await this.getGoogleSheetRowById(sheetName, id);
+    if (!rowMatch) return false;
 
     const spreadsheetMeta = await this.sheetsApi.spreadsheets.get({
       spreadsheetId: this.sheetId,
@@ -270,8 +302,8 @@ class SheetsService {
               range: {
                 sheetId: Number(targetSheetId),
                 dimension: "ROWS",
-                startIndex: rowIndex + 1, // zero-based, includes header row at index 0
-                endIndex: rowIndex + 2,
+                startIndex: rowMatch.rowNumber - 1,
+                endIndex: rowMatch.rowNumber,
               },
             },
           },
