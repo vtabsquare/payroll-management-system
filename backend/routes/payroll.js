@@ -268,6 +268,10 @@ router.post("/generate", authorize("admin"), async (req, res) => {
         net_salary: roundCurrency(breakdown.net_salary + incentiveAmount),
         payment_status: "Pending",
         payment_date: "",
+        is_viewed: false,
+        is_downloaded: false,
+        mail_sent: false,
+        is_paid: false,
         created_at: nowIso(),
       };
 
@@ -457,6 +461,7 @@ router.patch("/:id/mark-paid", authorize("admin"), async (req, res) => {
       ...current,
       payment_status: "Paid",
       payment_date: new Date().toISOString().slice(0, 10),
+      is_paid: true,
     });
 
     return res.json({ payroll: updated });
@@ -581,6 +586,7 @@ router.post("/:id/send-payslip", authorize("admin"), async (req, res) => {
     const updated = await db.updateById(SHEETS.PAYROLL, req.params.id, {
       ...current,
       payment_status: nextStatus,
+      mail_sent: true,
     });
 
     console.log("[Payslip] Email sent successfully with PDF attachment to", employee.company_email);
@@ -588,6 +594,39 @@ router.post("/:id/send-payslip", authorize("admin"), async (req, res) => {
   } catch (error) {
     console.error("[Payslip] Error:", error);
     return res.status(500).json({ message: error.message || "Failed to send payslip" });
+  }
+});
+
+/**
+ * PATCH /payroll/:id/track-action
+ * Track view or download action for a payslip
+ */
+router.patch("/:id/track-action", authorize("admin"), async (req, res) => {
+  try {
+    const { action } = req.body;
+    if (!["view", "download"].includes(action)) {
+      return res.status(400).json({ message: "Invalid action. Must be 'view' or 'download'" });
+    }
+
+    const payroll = await db.getAll(SHEETS.PAYROLL);
+    const current = payroll.find((item) => String(item.payroll_id) === String(req.params.id));
+
+    if (!current) {
+      return res.status(404).json({ message: "Payroll record not found" });
+    }
+
+    const updates = {};
+    if (action === "view") updates.is_viewed = true;
+    if (action === "download") updates.is_downloaded = true;
+
+    const updated = await db.updateById(SHEETS.PAYROLL, req.params.id, {
+      ...current,
+      ...updates,
+    });
+
+    return res.json({ payroll: updated });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to track action" });
   }
 });
 

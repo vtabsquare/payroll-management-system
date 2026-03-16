@@ -68,6 +68,10 @@ const SHEET_HEADERS = {
     "net_salary",
     "payment_status",
     "payment_date",
+    "is_viewed",
+    "is_downloaded",
+    "mail_sent",
+    "is_paid",
     "created_at",
   ],
   [SHEETS.ATTENDANCE_RECORDS]: [

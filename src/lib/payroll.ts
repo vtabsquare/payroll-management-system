@@ -47,6 +47,10 @@ export interface PayrollRecord {
   net_salary: number;
   payment_status: "Pending" | "Paid" | "Sent";
   payment_date: string;
+  is_viewed?: boolean;
+  is_downloaded?: boolean;
+  mail_sent?: boolean;
+  is_paid?: boolean;
   created_at: string;
 }
 

@@ -301,6 +301,12 @@ export const api = {
       method: "POST",
     }),
 
+  trackPayslipAction: (id: string, action: "view" | "download") =>
+    apiRequest<{ payroll: PayrollRecord }>(`/payroll/${id}/track-action`, {
+      method: "PATCH",
+      body: JSON.stringify({ action }),
+    }),
+
   syncSalarySchedule: () =>
     apiRequest<{ message: string; createdCount: number; scheduleCount: number }>(
       "/salary-revisions/sync",

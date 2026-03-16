@@ -96,6 +96,42 @@ export default function PayslipsPage() {
     loadPayslips();
   }, []);
 
+  const loadViewPayslip = async (record: PayrollRecord) => {
+    setViewPayslip(record);
+    try {
+      const { payroll } = await api.trackPayslipAction(record.payroll_id, "view");
+      setRecords((prev) => prev.map((r) => (r.payroll_id === record.payroll_id ? payroll : r)));
+    } catch (e) {
+      console.error("Failed to track view", e);
+    }
+  };
+
+  const renderStatus = (r: PayrollRecord) => {
+    const completed = [];
+    if (r.is_paid || r.payment_status === "Paid") completed.push({ label: "Paid", className: "bg-success/10 text-success border-0" });
+    if (r.mail_sent || r.payment_status === "Sent") completed.push({ label: "Sent", className: "bg-info/10 text-info border-0" });
+    if (r.is_downloaded) completed.push({ label: "Downloaded", className: "bg-purple-100/10 text-purple-400 border-0" });
+    if (r.is_viewed) completed.push({ label: "Viewed", className: "bg-blue-100/10 text-blue-400 border-0" });
+
+    if (completed.length === 0) {
+      return (
+        <Badge className="bg-warning/10 text-warning border-0">
+          Pending
+        </Badge>
+      );
+    }
+
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-1">
+        {completed.map((status, idx) => (
+          <Badge key={idx} className={status.className}>
+            {status.label}
+          </Badge>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -236,12 +272,10 @@ export default function PayslipsPage() {
                 <td className="p-4 text-muted-foreground">{monthNames[r.month - 1]} {r.year}</td>
                 <td className="p-4 text-right font-mono font-semibold text-foreground">{formatCurrency(r.net_salary)}</td>
                 <td className="p-4 text-center">
-                  <Badge className={r.payment_status === "Paid" ? "bg-success/10 text-success border-0" : r.payment_status === "Sent" ? "bg-info/10 text-info border-0" : "bg-warning/10 text-warning border-0"}>
-                    {r.payment_status}
-                  </Badge>
+                  {renderStatus(r)}
                 </td>
                 <td className="p-4 text-center">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewPayslip(r)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => loadViewPayslip(r)}>
                     <Eye className="w-3.5 h-3.5" />
                   </Button>
                 </td>

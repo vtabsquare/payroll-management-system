@@ -134,9 +134,25 @@ export default function PayrollPage() {
     }
   };
 
-  const downloadPayslip = (record: PayrollRecord) => {
+  const downloadPayslip = async (record: PayrollRecord) => {
     const downloadUrl = api.downloadPayslipUrl(record.payroll_id);
     window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    try {
+      const { payroll } = await api.trackPayslipAction(record.payroll_id, "download");
+      setRecords((prev) => prev.map((r) => (r.payroll_id === record.payroll_id ? payroll : r)));
+    } catch (e) {
+      console.error("Failed to track download", e);
+    }
+  };
+
+  const loadViewPayslip = async (record: PayrollRecord) => {
+    setViewPayslip(record);
+    try {
+      const { payroll } = await api.trackPayslipAction(record.payroll_id, "view");
+      setRecords((prev) => prev.map((r) => (r.payroll_id === record.payroll_id ? payroll : r)));
+    } catch (e) {
+      console.error("Failed to track view", e);
+    }
   };
 
   const deleteRecord = async (payrollId: string, employeeName: string) => {
@@ -472,7 +488,7 @@ export default function PayrollPage() {
                   </td>
                   <td className="p-4">
                     <div className="flex justify-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewPayslip(r)} title="View Payslip">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => loadViewPayslip(r)} title="View Payslip">
                         <Eye className="w-3.5 h-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadPayslip(r)} title="Download Payslip">
