@@ -3,6 +3,7 @@ const db = require("../services/db");
 const { SHEETS } = require("../utils/schema");
 const { nextId, nowIso } = require("../utils/helpers");
 const { authenticate, authorize } = require("../middleware/auth");
+const { sendEmail } = require("../services/emailService");
 
 const router = express.Router();
 router.use(authenticate);
@@ -77,6 +78,41 @@ router.post("/", authorize("employee"), async (req, res) => {
     };
 
     await db.append(SHEETS.PAYSLIP_REQUESTS, record);
+    
+    // Notify admins
+    const admins = users.filter((u) => String(u.role).toLowerCase() === "admin");
+    const adminEmails = admins.map((u) => u.email).filter(Boolean);
+    
+    if (adminEmails.length > 0) {
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const monthName = monthNames[monthNum - 1] || "Unknown";
+      const subject = `New Payslip Request from ${record.employee_name}`;
+      const messageHtml = record.request_message 
+        ? `<p><strong>Message from employee:</strong><br/>${record.request_message}</p>` 
+        : "";
+        
+      const html = `
+        <div style="font-family: Arial, sans-serif; padding: 24px;">
+          <h2 style="color: #0d2137;">New Payslip Request</h2>
+          <p>Employee <strong>${record.employee_name}</strong> (${record.employee_code}) has requested their payslip for <strong>${monthName} ${yearNum}</strong>.</p>
+          ${messageHtml}
+          <p>Please log in to the admin portal to review this request.</p>
+        </div>
+      `;
+
+      // Send email to all admins
+      for (const email of adminEmails) {
+        try {
+          await sendEmail({
+            to: email,
+            subject,
+            html,
+          });
+        } catch (emailErr) {
+          console.error("[Email Notification Error] Failed to send to", email, emailErr);
+        }
+      }
+    }
 
     return res.status(201).json({ request: record });
   } catch (error) {

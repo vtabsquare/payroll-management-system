@@ -4,7 +4,7 @@ import { monthNames, type PayrollRecord } from "@/lib/payroll";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Download } from "lucide-react";
+import { Eye } from "lucide-react";
 import PayslipModal from "@/components/PayslipModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/services/api";
@@ -51,34 +51,7 @@ export default function SalaryHistory() {
     });
   }, [records, yearFilter, monthFilter]);
 
-  const downloadPayslip = (record: PayrollRecord) => {
-    const printable = `
-      <html>
-        <head><title>Payslip ${record.employee_id} ${record.month}/${record.year}</title></head>
-        <body style="font-family:Arial,sans-serif;padding:24px;">
-          <h2>Payslip - ${monthNames[record.month - 1]} ${record.year}</h2>
-          <p><strong>${record.employee_name}</strong> (${record.employee_id})</p>
-          <p>Working Days: ${record.working_days} | Paid Days: ${record.paid_days}</p>
-          <table style="width:100%;border-collapse:collapse;max-width:560px;margin-top:16px;">
-            <tr><td>Basic Salary</td><td style="text-align:right;">₹${record.basic_salary.toFixed(2)}</td></tr>
-            <tr><td>HRA</td><td style="text-align:right;">₹${record.hra.toFixed(2)}</td></tr>
-            <tr><td>Other Allowance</td><td style="text-align:right;">₹${record.other_allowance.toFixed(2)}</td></tr>
-            <tr><td>Special Pay</td><td style="text-align:right;">₹${record.special_pay.toFixed(2)}</td></tr>
-            <tr style="border-top:1px solid #ccc;"><td><strong>Gross Salary</strong></td><td style="text-align:right;"><strong>₹${record.gross_salary.toFixed(2)}</strong></td></tr>
-            <tr><td>Incentive Deduction</td><td style="text-align:right;color:red;">-₹${record.incentive_deduction.toFixed(2)}</td></tr>
-            ${record.incentive_payout > 0 ? `<tr><td>Incentive Payout (6-month)</td><td style="text-align:right;color:green;">+₹${record.incentive_payout.toFixed(2)}</td></tr>` : ""}
-            <tr style="border-top:2px solid #333;"><td><strong>Net Salary</strong></td><td style="text-align:right;"><strong>₹${record.net_salary.toFixed(2)}</strong></td></tr>
-          </table>
-          <p style="margin-top:24px;">Payment Status: ${record.payment_status}</p>
-          <script>window.print()</script>
-        </body>
-      </html>
-    `;
-    const blob = new Blob([printable], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener,noreferrer");
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+
 
   return (
     <div className="space-y-6">
@@ -144,9 +117,6 @@ export default function SalaryHistory() {
                 <td className="p-4 text-center">
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewPayslip(r)} title="View Payslip">
                     <Eye className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadPayslip(r)} title="Download Payslip">
-                    <Download className="w-3.5 h-3.5" />
                   </Button>
                 </td>
               </motion.tr>

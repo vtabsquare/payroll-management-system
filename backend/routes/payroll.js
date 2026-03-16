@@ -483,15 +483,9 @@ router.get("/:id/download-payslip", async (req, res) => {
       return res.status(404).json({ message: "Payroll record not found" });
     }
 
-    // Employees can only download their own payslips
+    // Only admins can download payslips via this endpoint
     if (req.user.role !== "admin") {
-      const user = users.find((u) => String(u.user_id) === String(req.user.id));
-      const emp =
-        user && (employees.find((e) => String(e.employee_id) === String(user.employee_id)) ||
-        employees.find((e) => String(e.company_email).toLowerCase() === String(user.email).toLowerCase()));
-      if (!emp || String(emp.employee_id) !== String(current.employee_id)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
+      return res.status(403).json({ message: "Forbidden: Only admins can download payslips" });
     }
 
     const employee = employees.find((emp) => String(emp.employee_id) === String(current.employee_id));

@@ -37,10 +37,7 @@ export default function EmployeeInbox() {
     return { icon: Clock, className: "bg-warning/10 text-warning border-0", label: "Pending" };
   };
 
-  const downloadPayslip = (payslipId: string) => {
-    const url = api.downloadPayslipUrl(payslipId);
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
+
 
   return (
     <div className="space-y-6">
@@ -58,7 +55,6 @@ export default function EmployeeInbox() {
               <th className="text-left p-4 font-medium text-muted-foreground">Requested Date</th>
               <th className="text-center p-4 font-medium text-muted-foreground">Status</th>
               <th className="text-left p-4 font-medium text-muted-foreground">Admin Comment</th>
-              <th className="text-center p-4 font-medium text-muted-foreground">Download</th>
             </tr>
           </thead>
           <tbody>
@@ -86,27 +82,12 @@ export default function EmployeeInbox() {
                   <td className="p-4 text-muted-foreground text-sm">
                     {r.status === "rejected" && r.admin_comment ? r.admin_comment : "—"}
                   </td>
-                  <td className="p-4 text-center">
-                    {r.status === "approved" && r.payslip_id ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => downloadPayslip(r.payslip_id)}
-                        title="Download Payslip"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
                 </motion.tr>
               );
             })}
             {!loading && requests.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                <td colSpan={5} className="p-6 text-center text-muted-foreground">
                   No payslip requests yet
                 </td>
               </tr>
