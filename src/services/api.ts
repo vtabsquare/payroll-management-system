@@ -1,6 +1,6 @@
-import type { Employee, PayrollRecord } from "@/lib/payroll";
+import type { Employee, PayrollRecord, PayslipRequest } from "@/lib/payroll";
 
-export type { Employee, PayrollRecord };
+export type { Employee, PayrollRecord, PayslipRequest };
 
 export type UserRole = "admin" | "employee";
 
@@ -360,4 +360,28 @@ export const api = {
   },
 
   getProfile: () => apiRequest<{ profile: Employee }>("/me/profile"),
+
+  // Payslip Requests
+  createPayslipRequest: (payload: { month: number; year: number; request_message?: string }) =>
+    apiRequest<{ request: PayslipRequest }>("/payslip-requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getMyPayslipRequests: () =>
+    apiRequest<{ requests: PayslipRequest[] }>("/payslip-requests/my"),
+
+  getAllPayslipRequests: () =>
+    apiRequest<{ requests: PayslipRequest[] }>("/payslip-requests"),
+
+  approvePayslipRequest: (id: string) =>
+    apiRequest<{ request: PayslipRequest }>(`/payslip-requests/${id}/approve`, {
+      method: "POST",
+    }),
+
+  rejectPayslipRequest: (id: string, admin_comment: string) =>
+    apiRequest<{ request: PayslipRequest }>(`/payslip-requests/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ admin_comment }),
+    }),
 };

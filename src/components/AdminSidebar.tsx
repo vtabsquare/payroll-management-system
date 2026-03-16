@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, UserCog, Upload, Calculator,
-  FileText, Receipt, Calendar, ChevronLeft, ChevronRight, LogOut
+  FileText, Receipt, Calendar, ChevronLeft, ChevronRight, LogOut, Inbox
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -17,6 +17,7 @@ const navItems = [
   { label: "Generate Payroll", icon: Calculator, path: "/admin/generate" },
   { label: "Payroll", icon: FileText, path: "/admin/payroll" },
   { label: "Payslips", icon: Receipt, path: "/admin/payslips" },
+  { label: "Inbox", icon: Inbox, path: "/admin/inbox" },
 ];
 
 export default function AdminSidebar() {

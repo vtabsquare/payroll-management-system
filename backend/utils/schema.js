@@ -6,6 +6,7 @@ const SHEETS = {
   INCENTIVE_LEDGER: "IncentiveLedger",
   SALARY_SCHEDULE: "SalarySchedule",
   SALARY_CHANGE_NOTIFICATIONS: "SalaryChangeNotifications",
+  PAYSLIP_REQUESTS: "PayslipRequests",
 };
 
 const SHEET_HEADERS = {
@@ -111,6 +112,21 @@ const SHEET_HEADERS = {
     "new_salary",
     "reminder_count",
     "status",
+  ],
+  [SHEETS.PAYSLIP_REQUESTS]: [
+    "request_id",
+    "employee_id",
+    "employee_name",
+    "employee_code",
+    "month",
+    "year",
+    "request_message",
+    "status",
+    "requested_at",
+    "processed_at",
+    "processed_by",
+    "admin_comment",
+    "payslip_id",
   ],
 };
 

@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, History, User, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { LayoutDashboard, History, User, ChevronLeft, ChevronRight, LogOut, Send, Inbox } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/employee" },
   { label: "Salary History", icon: History, path: "/employee/history" },
+  { label: "Request Payslip", icon: Send, path: "/employee/request-payslip" },
+  { label: "Inbox", icon: Inbox, path: "/employee/inbox" },
   { label: "Profile", icon: User, path: "/employee/profile" },
 ];
 

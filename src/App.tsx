@@ -17,10 +17,13 @@ import Attendance from "./pages/admin/Attendance";
 import GeneratePayroll from "./pages/admin/GeneratePayroll";
 import Payroll from "./pages/admin/Payroll";
 import Payslips from "./pages/admin/Payslips";
+import AdminInbox from "./pages/admin/AdminInbox";
 import EmployeeLayout from "./components/EmployeeLayout";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import SalaryHistory from "./pages/employee/SalaryHistory";
 import Profile from "./pages/employee/Profile";
+import RequestPayslip from "./pages/employee/RequestPayslip";
+import EmployeeInbox from "./pages/employee/EmployeeInbox";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -51,6 +54,7 @@ const App = () => (
                   <Route path="generate" element={<GeneratePayroll />} />
                   <Route path="payroll" element={<Payroll />} />
                   <Route path="payslips" element={<Payslips />} />
+                  <Route path="inbox" element={<AdminInbox />} />
                 </Route>
               </Route>
 
@@ -58,6 +62,8 @@ const App = () => (
                 <Route path="/employee" element={<EmployeeLayout />}>
                   <Route index element={<EmployeeDashboard />} />
                   <Route path="history" element={<SalaryHistory />} />
+                  <Route path="request-payslip" element={<RequestPayslip />} />
+                  <Route path="inbox" element={<EmployeeInbox />} />
                   <Route path="profile" element={<Profile />} />
                 </Route>
               </Route>

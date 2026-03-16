@@ -58,3 +58,19 @@ export const monthNames = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+export interface PayslipRequest {
+  request_id: string;
+  employee_id: string;
+  employee_name: string;
+  employee_code: string;
+  month: number;
+  year: number;
+  request_message: string;
+  status: "pending" | "approved" | "rejected";
+  requested_at: string;
+  processed_at: string;
+  processed_by: string;
+  admin_comment: string;
+  payslip_id: string;
+}

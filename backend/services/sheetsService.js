@@ -45,6 +45,7 @@ class SheetsService {
       [SHEETS.INCENTIVE_LEDGER]: [...(seed.incentiveLedger || [])],
       [SHEETS.SALARY_SCHEDULE]: [...(seed.salarySchedule || [])],
       [SHEETS.SALARY_CHANGE_NOTIFICATIONS]: [...(seed.salaryChangeNotifications || [])],
+      [SHEETS.PAYSLIP_REQUESTS]: [],
     };
 
     this.sheetsApi = null;
@@ -98,6 +99,7 @@ class SheetsService {
     if (sheetName === SHEETS.INCENTIVE_LEDGER) return "ledger_id";
     if (sheetName === SHEETS.SALARY_SCHEDULE) return "salaryrev_id";
     if (sheetName === SHEETS.SALARY_CHANGE_NOTIFICATIONS) return "notification_id";
+    if (sheetName === SHEETS.PAYSLIP_REQUESTS) return "request_id";
     return "id";
   }
 

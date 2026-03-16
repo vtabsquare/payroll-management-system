@@ -7,6 +7,7 @@ const payrollRoutes = require("./payroll");
 const salaryRevisionRoutes = require("./salaryRevisions");
 const salaryScheduleRoutes = require("./salarySchedule");
 const meRoutes = require("./me");
+const payslipRequestRoutes = require("./payslipRequests");
 
 const router = express.Router();
 
@@ -22,5 +23,7 @@ router.use("/payroll", payrollRoutes);
 router.use("/salary-revisions", salaryRevisionRoutes);
 router.use("/salary-schedule", salaryScheduleRoutes);
 router.use("/me", meRoutes);
+router.use("/payslip-requests", payslipRequestRoutes);
 
 module.exports = router;
+
