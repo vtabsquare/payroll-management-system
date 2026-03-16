@@ -470,14 +470,28 @@ router.patch("/:id/mark-paid", authorize("admin"), async (req, res) => {
   }
 });
 
-router.get("/:id/download-payslip", authorize("admin"), async (req, res) => {
+router.get("/:id/download-payslip", async (req, res) => {
   try {
-    const payroll = await db.getAll(SHEETS.PAYROLL);
-    const employees = await db.getAll(SHEETS.EMPLOYEES);
+    const [payroll, employees, users] = await Promise.all([
+      db.getAll(SHEETS.PAYROLL),
+      db.getAll(SHEETS.EMPLOYEES),
+      db.getAll(SHEETS.USERS),
+    ]);
 
     const current = payroll.find((item) => String(item.payroll_id) === String(req.params.id));
     if (!current) {
       return res.status(404).json({ message: "Payroll record not found" });
+    }
+
+    // Employees can only download their own payslips
+    if (req.user.role !== "admin") {
+      const user = users.find((u) => String(u.user_id) === String(req.user.id));
+      const emp =
+        user && (employees.find((e) => String(e.employee_id) === String(user.employee_id)) ||
+        employees.find((e) => String(e.company_email).toLowerCase() === String(user.email).toLowerCase()));
+      if (!emp || String(emp.employee_id) !== String(current.employee_id)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
     }
 
     const employee = employees.find((emp) => String(emp.employee_id) === String(current.employee_id));
