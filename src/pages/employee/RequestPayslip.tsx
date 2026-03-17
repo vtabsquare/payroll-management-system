@@ -23,6 +23,11 @@ export default function RequestPayslip() {
       return;
     }
 
+    if (!message.trim()) {
+      toast({ title: "Please provide a message", variant: "destructive" });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.createPayslipRequest({
@@ -91,11 +96,12 @@ export default function RequestPayslip() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">Message (optional)</label>
+            <label className="text-sm font-medium text-foreground mb-2 block">Message</label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Add a note to your request..."
+              required
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] resize-none"
             />
           </div>
