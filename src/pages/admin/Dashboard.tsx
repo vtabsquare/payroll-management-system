@@ -164,21 +164,27 @@ export default function AdminDashboard() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card className={`border-l-4 ${notification.final_reminder ? 'border-l-destructive bg-destructive/5' : 'border-l-warning bg-warning/5'}`}>
+              <Card className={`border-l-4 ${notification.is_overdue ? 'border-l-destructive bg-destructive/5' : notification.final_reminder ? 'border-l-destructive bg-destructive/5' : 'border-l-warning bg-warning/5'}`}>
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-full ${notification.final_reminder ? 'bg-destructive/10' : 'bg-warning/10'}`}>
-                        <AlertTriangle className={`w-5 h-5 ${notification.final_reminder ? 'text-destructive' : 'text-warning'}`} />
+                      <div className={`p-2 rounded-full ${notification.is_overdue || notification.final_reminder ? 'bg-destructive/10' : 'bg-warning/10'}`}>
+                        <AlertTriangle className={`w-5 h-5 ${notification.is_overdue || notification.final_reminder ? 'text-destructive' : 'text-warning'}`} />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold text-foreground">
-                            {notification.final_reminder ? 'Final Reminder' : 'Salary Change Reminder'}
+                            {notification.is_overdue ? '⚠️ Overdue — Action Required' : notification.final_reminder ? 'Final Reminder' : 'Salary Change Reminder'}
                           </h4>
-                          <Badge variant="outline" className="text-xs">
-                            Reminder {notification.reminder_number} of 3
-                          </Badge>
+                          {notification.is_overdue ? (
+                            <Badge variant="destructive" className="text-xs animate-pulse">
+                              OVERDUE
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Reminder {notification.reminder_number} of 3
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           <span className="font-medium text-foreground">{notification.employee_name}</span>
@@ -193,8 +199,14 @@ export default function AdminDashboard() {
                               Current: ₹{notification.current_salary.toLocaleString()} → New: ₹
                               {notification.new_salary.toLocaleString()}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              Target Date: {notification.target_date} ({notification.days_until} {notification.days_until === 1 ? 'day' : 'days'} remaining)
+                            <p className={`text-sm mt-0.5 font-medium ${notification.is_overdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                              Target Date: {notification.target_date}{' '}
+                              {notification.is_overdue
+                                ? `(${Math.abs(notification.days_until)} ${Math.abs(notification.days_until) === 1 ? 'day' : 'days'} overdue)`
+                                : notification.days_until === 0
+                                ? '(Due today)'
+                                : `(${notification.days_until} ${notification.days_until === 1 ? 'day' : 'days'} remaining)`
+                              }
                             </p>
                           </div>
                         </div>

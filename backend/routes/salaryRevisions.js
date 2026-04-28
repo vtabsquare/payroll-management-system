@@ -30,8 +30,9 @@ function normalizeScheduleStatuses(schedules) {
     const targetDate = new Date(item.target_date);
     targetDate.setHours(0, 0, 0, 0);
 
+    // Keep overdue entries visible — do NOT mark as completed until explicitly applied
     if (targetDate < today) {
-      return { ...item, status: "completed" };
+      return { ...item, status: "overdue" };
     }
 
     return { ...item, status: "upcoming" };
@@ -54,12 +55,14 @@ function enrichNotifications(notifications, schedules, employees) {
 
     const reminderCount = Number(notification.reminder_count) || 0;
     const daysUntil = targetSchedule ? getDaysUntilDate(targetSchedule.target_date) : 999;
+    const isOverdue = daysUntil < 0;
 
     return {
       ...notification,
       reminder_count: reminderCount,
       reminder_number: Math.min(reminderCount + 1, 3),
-      final_reminder: reminderCount >= 2,
+      final_reminder: reminderCount >= 2 || isOverdue,
+      is_overdue: isOverdue,
       employee_name: employee
         ? `${employee.first_name || ""} ${employee.last_name || ""}`.trim()
         : String(notification.employee_id),
@@ -87,11 +90,13 @@ async function syncSalaryScheduleInternal() {
     await db.replaceAll(SHEETS.SALARY_SCHEDULE, normalizedSchedules);
   }
 
-  // Create notifications for schedules within 7 days and not applied
+  // Create notifications for schedules within 7 days (or overdue) and not applied
   const toCreate = normalizedSchedules.filter((item) => {
-    if (String(item.status).toLowerCase() === "applied") return false;
+    const status = String(item.status).toLowerCase();
+    if (status === "applied") return false;
     const daysUntil = getDaysUntilDate(item.target_date);
-    return daysUntil >= 0 && daysUntil <= 7;
+    // Include overdue (daysUntil < 0) and upcoming within 7 days
+    return daysUntil <= 7;
   });
 
   let createdCount = 0;

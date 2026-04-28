@@ -72,6 +72,7 @@ export interface SalaryChangeNotification {
   reminder_count: number;
   reminder_number: number;
   final_reminder: boolean;
+  is_overdue: boolean;
   status: "pending" | "applied";
 }
 
