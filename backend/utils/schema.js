@@ -105,6 +105,7 @@ const SHEET_HEADERS = {
     "target_date",
     "salary",
     "status",
+    "last_alert_sent",
   ],
   [SHEETS.SALARY_CHANGE_NOTIFICATIONS]: [
     "notification_id",

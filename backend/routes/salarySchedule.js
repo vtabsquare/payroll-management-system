@@ -4,6 +4,7 @@ const { SHEETS } = require("../utils/schema");
 const { nextId, nowIso } = require("../utils/helpers");
 const { authenticate, authorize } = require("../middleware/auth");
 const { maskSalaries } = require("../middleware/maskSalaries");
+const { checkAndSendAlerts } = require("../services/scheduleAlertService");
 
 const router = express.Router();
 router.use(authenticate, maskSalaries);
@@ -64,6 +65,7 @@ router.post("/", authorize("admin"), async (req, res) => {
       target_date: String(target_date),
       salary: Number(salary),
       status: String(status || "upcoming"),
+      last_alert_sent: "",
     };
 
     await db.append(SHEETS.SALARY_SCHEDULE, newEntry);
@@ -95,6 +97,11 @@ router.patch("/:id", authorize("admin"), async (req, res) => {
       status: req.body.status !== undefined ? String(req.body.status) : current.status,
     };
 
+    // If target_date changed, reset the alert tracker so alerts fire again for the new date
+    if (req.body.target_date !== undefined && req.body.target_date !== current.target_date) {
+      updated.last_alert_sent = "";
+    }
+
     const result = await db.updateById(SHEETS.SALARY_SCHEDULE, req.params.id, updated);
 
     return res.json({ schedule: result });
@@ -121,6 +128,24 @@ router.delete("/:id", authorize("admin"), async (req, res) => {
     return res.json({ message: "Salary schedule entry deleted" });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to delete salary schedule entry" });
+  }
+});
+
+/**
+ * POST /salary-schedule/trigger-alerts
+ * Manually trigger the salary schedule alert check (for testing).
+ * This runs the same logic as the daily cron job.
+ */
+router.post("/trigger-alerts", authorize("admin"), async (req, res) => {
+  try {
+    console.log("[ScheduleAlert] Manual trigger by admin:", req.user.email || req.user.employee_id);
+    const result = await checkAndSendAlerts();
+    return res.json({
+      message: "Alert check completed",
+      ...result,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to run alert check" });
   }
 });
 

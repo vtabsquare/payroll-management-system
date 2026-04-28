@@ -16,6 +16,7 @@
     "googleapis": "^144.0.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "node-cron": "^4.2.1",
     "pdfkit": "^0.17.2",
     "vite_react_shadcn_ts": "file:.."
   }

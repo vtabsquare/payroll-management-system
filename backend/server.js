@@ -5,6 +5,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const apiRoutes = require("./routes");
 
+const { startScheduleAlertCron } = require("./services/cronScheduler");
+
 const app = express();
 const port = Number(process.env.PORT || 4000);
 
@@ -25,4 +27,7 @@ app.use((err, _req, res, _next) => {
 app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`Payroll backend running on port ${port}`);
+
+  // Start the salary schedule alert cron job
+  startScheduleAlertCron();
 });
