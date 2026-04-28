@@ -4,13 +4,14 @@ const { checkAndSendAlerts } = require("./scheduleAlertService");
 /**
  * Start the salary schedule alert cron job.
  * Runs every day at 9:00 AM IST (03:30 UTC) to check for upcoming
- * salary revision target dates and send reminder emails to admins.
+ * and overdue salary revision target dates and send reminder emails to admins.
  *
  * Alert schedule:
- *   D-3  →  Early reminder
- *   D-2  →  Follow-up reminder
- *   D-1  →  Urgent reminder
- *   D-0  →  Final notice (due today)
+ *   D-3       →  Early reminder
+ *   D-2       →  Follow-up reminder
+ *   D-1       →  Urgent reminder
+ *   D-0       →  Final notice (due today)
+ *   D+1, D+2… →  Daily overdue alerts (until applied/updated)
  */
 function startScheduleAlertCron() {
   // 9:00 AM IST = 03:30 UTC → cron: "30 3 * * *"

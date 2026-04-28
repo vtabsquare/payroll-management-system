@@ -10,7 +10,7 @@ const { sendEmail } = require("./emailService");
  * @param {string} opts.employeeId    – e.g. "EMP002"
  * @param {string} opts.targetDate    – ISO date string (YYYY-MM-DD)
  * @param {number} opts.salary        – scheduled salary amount
- * @param {number} opts.daysRemaining – 0-3
+ * @param {number} opts.daysRemaining – positive = days until due, 0 = today, negative = overdue
  * @returns {{ subject: string, html: string }}
  */
 function buildAlertEmail({ employeeName, employeeId, targetDate, salary, daysRemaining }) {
@@ -28,7 +28,10 @@ function buildAlertEmail({ employeeName, employeeId, targetDate, salary, daysRem
     minimumFractionDigits: 0,
   });
 
-  // Urgency configuration
+  const isOverdue = daysRemaining < 0;
+  const overdueDays = Math.abs(daysRemaining);
+
+  // Urgency configuration for pre-deadline reminders
   const urgencyConfig = {
     3: {
       subject: `📋 Salary Revision Reminder: 3 Days Remaining — ${employeeName} (${employeeId})`,
@@ -72,10 +75,24 @@ function buildAlertEmail({ employeeName, employeeId, targetDate, salary, daysRem
     },
   };
 
-  const config = urgencyConfig[daysRemaining] || urgencyConfig[3];
+  // Overdue configuration (past target date)
+  const overdueConfig = {
+    subject: `🚨 OVERDUE: Salary Revision ${overdueDays} Day${overdueDays > 1 ? "s" : ""} Past Due — ${employeeName} (${employeeId})`,
+    bannerBg: "#7f1d1d",
+    bannerBorder: "#991b1b",
+    bannerColor: "#ffffff",
+    bannerIcon: "🚨",
+    bannerText: `OVERDUE – ${overdueDays} DAY${overdueDays > 1 ? "S" : ""} PAST DUE`,
+    headline: `Salary revision is ${overdueDays} day${overdueDays > 1 ? "s" : ""} overdue`,
+    bodyText: `The salary revision for <strong>${employeeName}</strong> was due on <strong>${formattedDate}</strong> and is now <strong>${overdueDays} day${overdueDays > 1 ? "s" : ""} overdue</strong>. This revision has not been applied yet. Please take immediate action to apply the scheduled salary change or update the schedule.`,
+  };
+
+  const config = isOverdue ? overdueConfig : (urgencyConfig[daysRemaining] || urgencyConfig[3]);
 
   const daysLabel =
-    daysRemaining === 0
+    isOverdue
+      ? `${overdueDays} day${overdueDays > 1 ? "s" : ""} overdue`
+      : daysRemaining === 0
       ? "Today"
       : daysRemaining === 1
       ? "Tomorrow"
@@ -118,8 +135,8 @@ function buildAlertEmail({ employeeName, employeeId, targetDate, salary, daysRem
                 <td style="padding: 8px 0; color: #0f172a; font-weight: 600; font-size: 14px; border-top: 1px solid #e2e8f0;">${formattedDate}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 0; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0;">Time Remaining</td>
-                <td style="padding: 8px 0; font-weight: 700; font-size: 14px; border-top: 1px solid #e2e8f0; color: ${config.bannerColor};">${daysLabel}</td>
+                <td style="padding: 8px 0; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0;">${isOverdue ? "Overdue By" : "Time Remaining"}</td>
+                <td style="padding: 8px 0; font-weight: 700; font-size: 14px; border-top: 1px solid #e2e8f0; color: ${isOverdue ? '#dc2626' : config.bannerColor};">${daysLabel}</td>
               </tr>
             </table>
           </div>
@@ -170,8 +187,10 @@ function daysUntil(targetDateStr) {
 }
 
 /**
- * Main function: check all upcoming salary schedules and send alerts
- * for entries whose target_date is 0-3 days away.
+ * Main function: check all salary schedules and send alerts.
+ *  - Pre-deadline: entries whose target_date is 0-3 days away (status = "upcoming")
+ *  - Post-deadline: entries that are overdue (status = "upcoming" or "overdue")
+ *    → sends daily emails until the schedule is applied/updated
  */
 async function checkAndSendAlerts() {
   const today = getTodayIST();
@@ -202,18 +221,24 @@ async function checkAndSendAlerts() {
 
     console.log(`[ScheduleAlert] Admin recipients: ${adminEmails.join(", ")}`);
 
-    // 4. Filter to "upcoming" entries only
-    const upcomingEntries = scheduleRows.filter(
-      (row) => String(row.status || "").toLowerCase() === "upcoming"
-    );
+    // 4. Filter to entries that need alerting:
+    //    - "upcoming" entries (pre-deadline within 3 days OR overdue)
+    //    - "overdue" entries (past target date, not yet applied)
+    //    - Exclude "applied" entries (already processed)
+    const alertableEntries = scheduleRows.filter((row) => {
+      const status = String(row.status || "").toLowerCase();
+      // Never alert for already-applied entries
+      if (status === "applied") return false;
+      return status === "upcoming" || status === "overdue";
+    });
 
-    console.log(`[ScheduleAlert] Found ${upcomingEntries.length} upcoming schedule entries`);
+    console.log(`[ScheduleAlert] Found ${alertableEntries.length} alertable schedule entries`);
 
     let sent = 0;
     let skipped = 0;
     let errors = 0;
 
-    for (const entry of upcomingEntries) {
+    for (const entry of alertableEntries) {
       const targetDate = String(entry.target_date || "");
       if (!targetDate) {
         skipped++;
@@ -222,13 +247,14 @@ async function checkAndSendAlerts() {
 
       const remaining = daysUntil(targetDate);
 
-      // Only send alerts for 0-3 days remaining
-      if (remaining < 0 || remaining > 3) {
+      // Pre-deadline: only alert within 3 days window (0-3)
+      // Post-deadline (overdue): always alert (remaining < 0)
+      if (remaining > 3) {
         skipped++;
         continue;
       }
 
-      // Check if we already sent an alert for this date
+      // Check if we already sent an alert for this date (prevent duplicates)
       const lastAlertSent = String(entry.last_alert_sent || "");
       if (lastAlertSent === today) {
         console.log(`[ScheduleAlert] Already sent alert today for ${entry.salaryrev_id} (${targetDate}), skipping`);
@@ -237,6 +263,7 @@ async function checkAndSendAlerts() {
       }
 
       const employeeName = employeeMap.get(String(entry.employee_id)) || "Unknown Employee";
+      const isOverdue = remaining < 0;
 
       // Build the email
       const emailContent = buildAlertEmail({
@@ -256,7 +283,10 @@ async function checkAndSendAlerts() {
             subject: emailContent.subject,
             html: emailContent.html,
           });
-          console.log(`[ScheduleAlert] ✅ Sent alert to ${adminEmail} for ${employeeName} (${remaining} days remaining)`);
+          const label = isOverdue
+            ? `${Math.abs(remaining)} day(s) overdue`
+            : `${remaining} day(s) remaining`;
+          console.log(`[ScheduleAlert] ✅ Sent alert to ${adminEmail} for ${employeeName} (${label})`);
         } catch (emailError) {
           console.error(`[ScheduleAlert] ❌ Failed to send to ${adminEmail}:`, emailError.message);
           allSent = false;
@@ -267,10 +297,15 @@ async function checkAndSendAlerts() {
       // Update last_alert_sent to prevent duplicate emails today
       if (allSent) {
         try {
-          await db.updateById(SHEETS.SALARY_SCHEDULE, entry.salaryrev_id, {
+          // Also update status to "overdue" if it was still "upcoming" but past due
+          const updatedFields = {
             ...entry,
             last_alert_sent: today,
-          });
+          };
+          if (isOverdue && String(entry.status || "").toLowerCase() === "upcoming") {
+            updatedFields.status = "overdue";
+          }
+          await db.updateById(SHEETS.SALARY_SCHEDULE, entry.salaryrev_id, updatedFields);
         } catch (updateError) {
           console.error(`[ScheduleAlert] Failed to update last_alert_sent for ${entry.salaryrev_id}:`, updateError.message);
         }
