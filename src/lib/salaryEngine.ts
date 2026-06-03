@@ -34,8 +34,8 @@ export function calculateSalary(input: SalaryInput): SalaryBreakdown {
   const otherProrated = roundCurrency(input.other_allowance * salaryFactor);
   const specialProrated = roundCurrency(input.special_pay * salaryFactor);
 
-  // Incentive deduction: prorated based on attendance like other components
-  const incentiveDeduction = roundCurrency(MONTHLY_INCENTIVE_DEDUCTION * salaryFactor);
+  // Incentive deduction: fixed amount, NOT prorated by attendance
+  const incentiveDeduction = roundCurrency(MONTHLY_INCENTIVE_DEDUCTION);
 
   // Incentive payout from 6-month accumulation
   const incentivePayout = roundCurrency(input.incentive_payout || 0);

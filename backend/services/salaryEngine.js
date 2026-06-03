@@ -20,15 +20,15 @@ function roundCurrency(value) {
  * - incentive_payout: optional accumulated incentive payout (admin-controlled)
  *
  * Output:
- * - All prorated components (including incentive deduction)
- * - incentive_deduction: prorated employee-specific incentive
+ * - All prorated components (basic, hra, other, special)
+ * - incentive_deduction: FIXED employee-specific incentive (NOT prorated)
  * - incentive_payout: passed through if provided
- * - gross_salary: sum of all prorated components INCLUDING incentive deduction
+ * - gross_salary: sum of prorated components + FIXED incentive deduction
  * - net_salary: gross - incentive_deduction + incentive_payout
  *
- * Note: Gross salary now includes incentive deduction to ensure attendance/LOP
- * calculations are based on the full salary structure. The incentive is still
- * deducted at the net salary stage.
+ * Note: Incentive deduction is always the full amount regardless of attendance.
+ * Gross salary includes this fixed incentive to ensure attendance/LOP calculations
+ * are based on the full salary structure.
  */
 function calculateSalary(input) {
   const workingDays = Number(input.working_days);
@@ -65,12 +65,9 @@ function calculateSalary(input) {
   const otherTotal = roundCurrency(otherProrated + otherExtra);
   const specialTotal = roundCurrency(specialProrated + specialExtra);
 
-  // Dynamic incentive deduction: use employee-specific incentive
-  // This is prorated based on attendance like other components
-  const employeeIncentiveBase = Number(input.incentive || 0);
-  const incentiveProrated = roundCurrency(employeeIncentiveBase * salaryFactor);
-  const incentiveExtra = roundCurrency(employeeIncentiveBase * extraFactor);
-  const incentiveDeduction = roundCurrency(incentiveProrated + incentiveExtra);
+  // Fixed incentive deduction: use employee-specific incentive amount
+  // This is NOT prorated - always deduct the full amount regardless of attendance
+  const incentiveDeduction = roundCurrency(Number(input.incentive || 0));
 
   // Incentive payout (admin-controlled, passed in)
   const incentivePayout = roundCurrency(Number(input.incentive_payout || 0));
