@@ -6,7 +6,7 @@ function roundCurrency(value) {
 }
 
 /**
- * Calculate salary with new proration and dynamic incentive deduction logic.
+ * Calculate salary with proration and dynamic incentive deduction logic.
  *
  * Input:
  * - basic: base salary from employee record
@@ -16,14 +16,19 @@ function roundCurrency(value) {
  * - incentive: employee-specific monthly incentive deduction amount
  * - working_days: total working days in month
  * - paid_days: actual paid days for employee
+ * - extra_days: additional days to pay (optional)
  * - incentive_payout: optional accumulated incentive payout (admin-controlled)
  *
  * Output:
- * - All prorated components
- * - incentive_deduction: employee-specific incentive deducted from basic (capped to not go negative)
+ * - All prorated components (including incentive deduction)
+ * - incentive_deduction: prorated employee-specific incentive
  * - incentive_payout: passed through if provided
- * - gross_salary: sum of all prorated components
+ * - gross_salary: sum of all prorated components INCLUDING incentive deduction
  * - net_salary: gross - incentive_deduction + incentive_payout
+ *
+ * Note: Gross salary now includes incentive deduction to ensure attendance/LOP
+ * calculations are based on the full salary structure. The incentive is still
+ * deducted at the net salary stage.
  */
 function calculateSalary(input) {
   const workingDays = Number(input.working_days);
@@ -60,15 +65,19 @@ function calculateSalary(input) {
   const otherTotal = roundCurrency(otherProrated + otherExtra);
   const specialTotal = roundCurrency(specialProrated + specialExtra);
 
-  // Dynamic incentive deduction: use employee-specific incentive, but cannot make basic negative
-  const employeeIncentive = Number(input.incentive || 0);
-  const incentiveDeduction = roundCurrency(Math.min(employeeIncentive, basicTotal));
+  // Dynamic incentive deduction: use employee-specific incentive
+  // This is prorated based on attendance like other components
+  const employeeIncentiveBase = Number(input.incentive || 0);
+  const incentiveProrated = roundCurrency(employeeIncentiveBase * salaryFactor);
+  const incentiveExtra = roundCurrency(employeeIncentiveBase * extraFactor);
+  const incentiveDeduction = roundCurrency(incentiveProrated + incentiveExtra);
 
   // Incentive payout (admin-controlled, passed in)
   const incentivePayout = roundCurrency(Number(input.incentive_payout || 0));
 
-  // Gross salary: sum of all prorated components (before deduction)
-  const grossSalary = roundCurrency(basicTotal + hraTotal + otherTotal + specialTotal);
+  // Gross salary: sum of all prorated components INCLUDING incentive deduction
+  // This ensures attendance and LOP calculations are based on the full gross including incentive
+  const grossSalary = roundCurrency(basicTotal + hraTotal + otherTotal + specialTotal + incentiveDeduction);
 
   // Net salary: gross - incentive_deduction + incentive_payout
   const netSalary = roundCurrency(grossSalary - incentiveDeduction + incentivePayout);

@@ -34,14 +34,15 @@ export function calculateSalary(input: SalaryInput): SalaryBreakdown {
   const otherProrated = roundCurrency(input.other_allowance * salaryFactor);
   const specialProrated = roundCurrency(input.special_pay * salaryFactor);
 
-  // Incentive deduction: ₹1000, capped to not make basic negative
-  const incentiveDeduction = roundCurrency(Math.min(MONTHLY_INCENTIVE_DEDUCTION, basicProrated));
+  // Incentive deduction: prorated based on attendance like other components
+  const incentiveDeduction = roundCurrency(MONTHLY_INCENTIVE_DEDUCTION * salaryFactor);
 
   // Incentive payout from 6-month accumulation
   const incentivePayout = roundCurrency(input.incentive_payout || 0);
 
-  // Gross salary: sum of all prorated components
-  const grossSalary = roundCurrency(basicProrated + hraProrated + otherProrated + specialProrated);
+  // Gross salary: sum of all prorated components INCLUDING incentive deduction
+  // This ensures attendance and LOP calculations are based on the full gross including incentive
+  const grossSalary = roundCurrency(basicProrated + hraProrated + otherProrated + specialProrated + incentiveDeduction);
 
   // Net salary: gross - incentive_deduction + incentive_payout
   const netSalary = roundCurrency(grossSalary - incentiveDeduction + incentivePayout);
