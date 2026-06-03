@@ -75,7 +75,7 @@ export default function EmployeesPage() {
   };
 
   const grossDisplay = (employee: Employee): string => {
-    const parts = [employee.base_salary, employee.hra, employee.other_allowance, employee.special_pay];
+    const parts = [employee.base_salary, employee.hra, employee.other_allowance, employee.special_pay, employee.incentive];
     if (parts.some(isMaskedValue)) {
       return "₹*****";
     }
