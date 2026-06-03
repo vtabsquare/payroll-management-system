@@ -29,22 +29,27 @@ function roundCurrency(value: number): number {
 export function calculateSalary(input: SalaryInput): SalaryBreakdown {
   const salaryFactor = input.paid_days / input.working_days;
 
+  // Step 1: Calculate FULL MONTHLY GROSS (including incentive)
+  const monthlyGross = roundCurrency(
+    input.basic + input.hra + input.other_allowance + input.special_pay + MONTHLY_INCENTIVE_DEDUCTION
+  );
+
+  // Step 2: Apply attendance proration to ENTIRE GROSS
+  const grossSalary = roundCurrency(monthlyGross * salaryFactor);
+
+  // Calculate individual prorated components for breakdown display
   const basicProrated = roundCurrency(input.basic * salaryFactor);
   const hraProrated = roundCurrency(input.hra * salaryFactor);
   const otherProrated = roundCurrency(input.other_allowance * salaryFactor);
   const specialProrated = roundCurrency(input.special_pay * salaryFactor);
 
-  // Incentive deduction: fixed amount, NOT prorated by attendance
+  // Step 3: Fixed incentive deduction (NOT prorated)
   const incentiveDeduction = roundCurrency(MONTHLY_INCENTIVE_DEDUCTION);
 
   // Incentive payout from 6-month accumulation
   const incentivePayout = roundCurrency(input.incentive_payout || 0);
 
-  // Gross salary: sum of all prorated components INCLUDING incentive deduction
-  // This ensures attendance and LOP calculations are based on the full gross including incentive
-  const grossSalary = roundCurrency(basicProrated + hraProrated + otherProrated + specialProrated + incentiveDeduction);
-
-  // Net salary: gross - incentive_deduction + incentive_payout
+  // Step 4: Calculate Net Pay
   const netSalary = roundCurrency(grossSalary - incentiveDeduction + incentivePayout);
 
   return {
