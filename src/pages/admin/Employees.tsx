@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle, ArrowUpDown, ArrowUp, ArrowDown, ArrowDownAZ } from "lucide-react";
+import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle, ArrowUpDown, ArrowUp, ArrowDown, ArrowDownAZ, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/salaryEngine";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api, type IncentiveLedgerEntry } from "@/services/api";
+import { IncentivePayoutModal } from "@/components/IncentivePayoutModal";
 
 const PAGE_SIZE = 6;
 
@@ -44,6 +45,8 @@ export default function EmployeesPage() {
   const [ledgerMonthFilter, setLedgerMonthFilter] = useState<string>("all");
   const [ledgerYearFilter, setLedgerYearFilter] = useState<string>("all");
   const [ledgerEmployeeFilter, setLedgerEmployeeFilter] = useState<string>("all");
+  const [payoutModalOpen, setPayoutModalOpen] = useState(false);
+  const [payoutEmployee, setPayoutEmployee] = useState<{ id: string; name: string; balance: number } | null>(null);
   const { toast } = useToast();
 
   // Get unique designations from existing employees
@@ -1254,6 +1257,7 @@ export default function EmployeesPage() {
                 <th className="text-left p-3 font-medium text-muted-foreground">Transaction Date</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Reference</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Created At</th>
+                <th className="text-center p-3 font-medium text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1292,12 +1296,32 @@ export default function EmployeesPage() {
                     <td className="p-3 text-foreground">{entry.transaction_date || "-"}</td>
                     <td className="p-3 text-foreground">{entry.reference || "-"}</td>
                     <td className="p-3 text-muted-foreground">{entry.created_at ? new Date(entry.created_at).toLocaleString() : "-"}</td>
+                    <td className="p-3 text-center">
+                      {entry.status === "not_paid" && entry.running_balance > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => {
+                            setPayoutEmployee({
+                              id: entry.employee_id,
+                              name: entry.employee_name || "Unknown",
+                              balance: entry.running_balance,
+                            });
+                            setPayoutModalOpen(true);
+                          }}
+                        >
+                          <Wallet className="w-3 h-3 mr-1" />
+                          Pay Now
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {!ledgerLoading && filteredLedger.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-6 text-center text-muted-foreground">No incentive ledger entries found</td>
+                  <td colSpan={10} className="p-6 text-center text-muted-foreground">No incentive ledger entries found</td>
                 </tr>
               )}
             </tbody>
@@ -1750,6 +1774,26 @@ export default function EmployeesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Standalone Incentive Payout Modal */}
+      {payoutModalOpen && payoutEmployee && (
+        <IncentivePayoutModal
+          employeeId={payoutEmployee.id}
+          employeeName={payoutEmployee.name}
+          currentBalance={payoutEmployee.balance}
+          onClose={() => {
+            setPayoutModalOpen(false);
+            setPayoutEmployee(null);
+          }}
+          onSuccess={() => {
+            loadIncentiveLedger();
+            toast({
+              title: "Success",
+              description: "Incentive payout recorded successfully",
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
