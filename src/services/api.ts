@@ -292,6 +292,12 @@ export const api = {
       method: "POST",
     }),
 
+  payIncentiveFromPayroll: (payrollId: string, payload: { payout_amount: number; reference?: string }) =>
+    apiRequest<{ payroll: PayrollRecord; ledger: IncentiveLedgerEntry }>(`/payroll/${payrollId}/pay-incentive`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   markPayrollPaid: (id: string) =>
     apiRequest<{ payroll: PayrollRecord }>(`/payroll/${id}/mark-paid`, {
       method: "PATCH",

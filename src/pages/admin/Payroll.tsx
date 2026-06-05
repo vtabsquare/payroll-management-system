@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Mail, Lock, Eye, ArrowDownAZ, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { Download, Mail, Lock, Eye, ArrowDownAZ, ArrowUp, ArrowDown, Trash2, IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { monthNames, type PayrollRecord } from "@/lib/payroll";
 import { formatCurrency } from "@/lib/salaryEngine";
 import { useToast } from "@/hooks/use-toast";
 import PayslipModal from "@/components/PayslipModal";
+import { PayrollIncentivePayoutModal } from "@/components/PayrollIncentivePayoutModal";
 import { api } from "@/services/api";
 
 export default function PayrollPage() {
@@ -20,6 +21,7 @@ export default function PayrollPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [viewPayslip, setViewPayslip] = useState<PayrollRecord | null>(null);
+  const [incentivePayoutRecord, setIncentivePayoutRecord] = useState<PayrollRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
@@ -494,6 +496,15 @@ export default function PayrollPage() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadPayslip(r)} title="Download Payslip">
                         <Download className="w-3.5 h-3.5" />
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                        onClick={() => setIncentivePayoutRecord(r)}
+                        title="Pay Incentive"
+                      >
+                        <IndianRupee className="w-3.5 h-3.5" />
+                      </Button>
                       {r.payment_status === "Pending" && (
                         <>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => markPaid(r.payroll_id)} title="Mark Paid">
@@ -528,6 +539,22 @@ export default function PayrollPage() {
       </div>
 
       <PayslipModal record={viewPayslip} onClose={() => setViewPayslip(null)} />
+
+      {incentivePayoutRecord && (
+        <PayrollIncentivePayoutModal
+          payrollRecord={incentivePayoutRecord}
+          onClose={() => setIncentivePayoutRecord(null)}
+          onSuccess={(updatedPayroll) => {
+            setRecords((prev) =>
+              prev.map((r) =>
+                r.payroll_id === updatedPayroll.payroll_id ? updatedPayroll : r
+              )
+            );
+            setIncentivePayoutRecord(null);
+            toast({ title: "Incentive paid successfully" });
+          }}
+        />
+      )}
     </div>
   );
 }

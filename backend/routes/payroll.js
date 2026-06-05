@@ -448,6 +448,96 @@ router.post("/incentive-ledger/payout", authorize("admin"), async (req, res) => 
   }
 });
 
+/**
+ * POST /payroll/:id/pay-incentive
+ * Pay incentive from a specific payroll record.
+ * Creates a payout ledger entry and updates the payroll record's incentive_amount and net_salary.
+ * Body: { payout_amount: number, reference?: string }
+ */
+router.post("/:id/pay-incentive", authorize("admin"), async (req, res) => {
+  try {
+    const { payout_amount, reference } = req.body || {};
+    const payrollId = req.params.id;
+
+    // Validate payout amount
+    const amount = Number(payout_amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ message: "payout_amount must be a valid positive number" });
+    }
+
+    // Get payroll record
+    const payrollRows = await db.getAll(SHEETS.PAYROLL);
+    const current = payrollRows.find((item) => String(item.payroll_id) === String(payrollId));
+    if (!current) {
+      return res.status(404).json({ message: "Payroll record not found" });
+    }
+
+    // Get employee and ledger data
+    const [employees, ledgerRows] = await Promise.all([
+      db.getAll(SHEETS.EMPLOYEES),
+      db.getAll(SHEETS.INCENTIVE_LEDGER),
+    ]);
+
+    const employee = employees.find((emp) => String(emp.employee_id) === String(current.employee_id));
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    // Check employee's current incentive balance
+    const balanceBeforePayout = getEmployeeLedgerBalance(ledgerRows, current.employee_id);
+    if (balanceBeforePayout <= 0) {
+      return res.status(400).json({ message: "No unpaid incentive balance available for this employee" });
+    }
+
+    if (amount > balanceBeforePayout) {
+      return res.status(400).json({
+        message: `Payout amount (${amount}) cannot exceed current unpaid balance (${balanceBeforePayout})`,
+      });
+    }
+
+    // Create payout ledger entry
+    const transactionDate = new Date().toISOString().slice(0, 10);
+    const monthNum = Number(current.month);
+    const yearNum = Number(current.year);
+    const runningBalance = roundCurrency(balanceBeforePayout - amount);
+
+    const ledgerEntry = {
+      ledger_id: nextId(ledgerRows.map((e) => ({ id: e.ledger_id }))),
+      employee_id: String(current.employee_id),
+      month: monthNum,
+      year: yearNum,
+      entry_type: "payout",
+      amount: roundCurrency(amount),
+      running_balance: runningBalance,
+      status: runningBalance <= 0 ? "paid" : "partially_paid",
+      reference: String(reference || "").trim() || `Paid via ${monthNum}-${yearNum} payroll`,
+      transaction_date: transactionDate,
+      created_at: nowIso(),
+    };
+
+    await db.append(SHEETS.INCENTIVE_LEDGER, ledgerEntry);
+
+    // Update payroll record: accumulate incentive_amount and adjust net_salary
+    const existingIncentiveAmount = roundCurrency(Number(current.incentive_amount || 0));
+    const newIncentiveAmount = roundCurrency(existingIncentiveAmount + amount);
+    const existingNetSalary = roundCurrency(Number(current.net_salary || 0));
+    const newNetSalary = roundCurrency(existingNetSalary + amount);
+
+    const updatedPayroll = await db.updateById(SHEETS.PAYROLL, payrollId, {
+      ...current,
+      incentive_amount: newIncentiveAmount,
+      net_salary: newNetSalary,
+    });
+
+    return res.status(201).json({
+      payroll: updatedPayroll,
+      ledger: normalizeLedgerRow(ledgerEntry),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to pay incentive" });
+  }
+});
+
 router.patch("/:id/mark-paid", authorize("admin"), async (req, res) => {
   try {
     const payroll = await db.getAll(SHEETS.PAYROLL);

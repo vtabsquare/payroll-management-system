@@ -263,6 +263,8 @@ function drawPayslipPage(doc, payrollRecord, employee, monthName, year) {
   const gross = Number(payrollRecord.gross_salary) || 0;
   const net = Number(payrollRecord.net_salary) || 0;
 
+  const incentiveAmount = Number(payrollRecord.incentive_amount) || 0;
+
   const rows = [
     { label: "Basic Salary", value: basic.toFixed(2) },
     { label: "HRA", value: hra.toFixed(2) },
@@ -272,12 +274,16 @@ function drawPayslipPage(doc, payrollRecord, employee, monthName, year) {
     { label: "Incentive Deduction", value: `-${incentiveDeduction.toFixed(2)}`, isDeduction: true },
   ];
 
+  if (incentiveAmount > 0) {
+    rows.push({ label: "Incentive Payout (Standalone)", value: `+${incentiveAmount.toFixed(2)}`, isEarning: true });
+  }
+
   doc.font("Helvetica").fontSize(10);
   rows.forEach((row, index) => {
     const bgColor = index % 2 === 0 ? COLORS.white : "#fafafa";
     doc.rect(tableX, y, tableWidth, 22).fill(bgColor);
     doc.fillColor(COLORS.textMuted).text(row.label, tableX + 10, y + 6);
-    doc.fillColor(row.isDeduction ? COLORS.red : COLORS.textDark);
+    doc.fillColor(row.isDeduction ? COLORS.red : row.isEarning ? COLORS.green : COLORS.textDark);
     doc.text(row.value, tableX + col1Width + 10, y + 6);
     y += 22;
   });
