@@ -935,7 +935,7 @@ router.patch("/:id", authorize("admin"), async (req, res) => {
     const { basic_salary, hra, other_allowance, special_pay, gross_salary, net_salary } = req.body;
 
     const payrollRecords = await db.getAll(SHEETS.PAYROLL);
-    const existing = payrollRecords.find((r) => r.payroll_id === payrollId);
+    const existing = payrollRecords.find((r) => String(r.payroll_id) === String(payrollId));
 
     if (!existing) {
       return res.status(404).json({ message: "Payroll record not found" });
