@@ -576,7 +576,7 @@ export default function PayrollPage() {
         isOpen={!!editRecord}
         onClose={() => setEditRecord(null)}
         record={editRecord}
-        onSuccess={() => fetchRecords()}
+        onSuccess={() => loadPayroll()}
       />
     </div>
   );
