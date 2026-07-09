@@ -22,7 +22,7 @@ export interface SalaryBreakdown {
 
 const MONTHLY_INCENTIVE_DEDUCTION = 1000;
 
-function roundCurrency(value: number): number {
+export function roundCurrency(value: number): number {
   return Math.round((value || 0) * 100) / 100;
 }
 
