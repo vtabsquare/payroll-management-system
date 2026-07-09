@@ -258,6 +258,12 @@ export const api = {
     return apiRequest<{ payroll: PayrollRecord[] }>(`/payroll${suffix}`);
   },
 
+  editPayroll: (id: string, payload: Partial<PayrollRecord>) =>
+    apiRequest<{ message: string; payroll: PayrollRecord }>(`/payroll/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
   deletePayrollRecord: (payrollId: string) =>
     apiRequest<{ message: string; deletedPayrollId: string; deletedLedgerEntries: number }>(`/payroll/${payrollId}`, {
       method: "DELETE",

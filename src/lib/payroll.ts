@@ -51,6 +51,7 @@ export interface PayrollRecord {
   is_downloaded?: boolean;
   mail_sent?: boolean;
   is_paid?: boolean;
+  is_edited?: boolean;
   created_at: string;
 }
 

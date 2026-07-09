@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Mail, Lock, Eye, ArrowDownAZ, ArrowUp, ArrowDown, Trash2, IndianRupee } from "lucide-react";
+import { Download, Mail, Lock, Eye, ArrowDownAZ, ArrowUp, ArrowDown, Trash2, IndianRupee, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/salaryEngine";
 import { useToast } from "@/hooks/use-toast";
 import PayslipModal from "@/components/PayslipModal";
 import { PayrollIncentivePayoutModal } from "@/components/PayrollIncentivePayoutModal";
+import { EditPayrollModal } from "@/components/EditPayrollModal";
 import { api } from "@/services/api";
 
 export default function PayrollPage() {
@@ -22,6 +23,7 @@ export default function PayrollPage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [viewPayslip, setViewPayslip] = useState<PayrollRecord | null>(null);
   const [incentivePayoutRecord, setIncentivePayoutRecord] = useState<PayrollRecord | null>(null);
+  const [editRecord, setEditRecord] = useState<PayrollRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
@@ -484,7 +486,16 @@ export default function PayrollPage() {
                   <td className="p-4 text-muted-foreground">{monthNames[r.month - 1]} {r.year}</td>
                   <td className="p-4 text-right font-mono text-foreground">{formatCurrency(r.gross_salary)}</td>
                   <td className="p-4 text-right font-mono text-destructive">{formatCurrency(r.incentive_deduction)}</td>
-                  <td className="p-4 text-right font-mono font-semibold text-foreground">{formatCurrency(r.net_salary)}</td>
+                  <td className="p-4 text-right font-mono font-semibold text-foreground">
+                    <div className="flex flex-col items-end">
+                      <span>{formatCurrency(r.net_salary)}</span>
+                      {(r.is_edited === true || r.is_edited === "true" as any) && (
+                        <Badge variant="outline" className="text-[10px] mt-1 text-orange-500 border-orange-500/30 bg-orange-500/10 h-4 px-1 rounded-sm">
+                          Manually Adjusted
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-4 text-center">
                     <Badge className={statusColor(r.payment_status)}>{r.payment_status}</Badge>
                   </td>
@@ -496,6 +507,11 @@ export default function PayrollPage() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadPayslip(r)} title="Download Payslip">
                         <Download className="w-3.5 h-3.5" />
                       </Button>
+                      {r.payment_status === "Pending" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditRecord(r)} title="Edit Payroll">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -555,6 +571,13 @@ export default function PayrollPage() {
           }}
         />
       )}
+
+      <EditPayrollModal
+        isOpen={!!editRecord}
+        onClose={() => setEditRecord(null)}
+        record={editRecord}
+        onSuccess={() => fetchRecords()}
+      />
     </div>
   );
 }

@@ -924,5 +924,45 @@ router.delete("/period/:month/:year", authorize("admin"), async (req, res) => {
     return res.status(500).json({ message: error.message || "Failed to delete payroll records" });
   }
 });
+/**
+ * PATCH /payroll/:id
+ * Manually update/edit a generated payroll record (allowances, basic, etc.)
+ * Incentive fields are locked to avoid corrupting the incentive ledger.
+ */
+router.patch("/:id", authorize("admin"), async (req, res) => {
+  try {
+    const payrollId = req.params.id;
+    const { basic_salary, hra, other_allowance, special_pay, gross_salary, net_salary } = req.body;
+
+    const payrollRecords = await db.getAll(SHEETS.PAYROLL);
+    const existing = payrollRecords.find((r) => r.payroll_id === payrollId);
+
+    if (!existing) {
+      return res.status(404).json({ message: "Payroll record not found" });
+    }
+
+    if (existing.is_paid === "true" || existing.is_paid === true) {
+      return res.status(400).json({ message: "Cannot edit a payroll record that is already paid" });
+    }
+
+    const updatedRecord = {
+      ...existing,
+      basic_salary: Number(basic_salary),
+      hra: Number(hra),
+      other_allowance: Number(other_allowance),
+      special_pay: Number(special_pay),
+      gross_salary: Number(gross_salary),
+      net_salary: Number(net_salary),
+      is_edited: true,
+      updated_at: nowIso(),
+    };
+
+    await db.updateById(SHEETS.PAYROLL, payrollId, updatedRecord);
+
+    return res.json({ message: "Payroll record updated successfully", payroll: updatedRecord });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update payroll record" });
+  }
+});
 
 module.exports = router;
