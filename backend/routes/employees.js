@@ -167,4 +167,102 @@ router.patch("/:id/status", async (req, res) => {
   }
 });
 
+router.post("/sync-sharepoint", async (req, res) => {
+  try {
+    const {
+      MS_GRAPH_TENANT_ID,
+      MS_GRAPH_CLIENT_ID,
+      MS_GRAPH_CLIENT_SECRET,
+      SHAREPOINT_CSV_URL,
+    } = process.env;
+
+    if (!MS_GRAPH_TENANT_ID || !MS_GRAPH_CLIENT_ID || !MS_GRAPH_CLIENT_SECRET || !SHAREPOINT_CSV_URL) {
+      return res.status(400).json({ message: "SharePoint sync is not configured in .env" });
+    }
+
+    // 1. Get Access Token
+    const tokenParams = new URLSearchParams({
+      client_id: MS_GRAPH_CLIENT_ID,
+      scope: "https://graph.microsoft.com/.default",
+      client_secret: MS_GRAPH_CLIENT_SECRET,
+      grant_type: "client_credentials",
+    });
+
+    const tokenResponse = await fetch(`https://login.microsoftonline.com/${MS_GRAPH_TENANT_ID}/oauth2/v2.0/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenParams.toString(),
+    });
+
+    if (!tokenResponse.ok) {
+      const errTxt = await tokenResponse.text();
+      throw new Error(`Failed to get Graph token: ${errTxt}`);
+    }
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // 2. Fetch CSV from Sharing URL
+    // Format sharing URL for Graph API: https://learn.microsoft.com/en-us/graph/api/shares-get?view=graph-rest-1.0
+    const base64Value = Buffer.from(SHAREPOINT_CSV_URL).toString("base64");
+    const encodedUrl = "u!" + base64Value.replace(/=/g, "").replace(/\//g, "_").replace(/\+/g, "-");
+
+    const csvResponse = await fetch(`https://graph.microsoft.com/v1.0/shares/${encodedUrl}/driveItem/content`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!csvResponse.ok) {
+      const errTxt = await csvResponse.text();
+      throw new Error(`Failed to fetch CSV from SharePoint: ${errTxt}`);
+    }
+    const csvText = await csvResponse.text();
+
+    // 3. Parse CSV
+    const lines = csvText.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length < 2) {
+      return res.status(400).json({ message: "CSV file is empty or has no data rows" });
+    }
+
+    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+    const empIdIndex = headers.indexOf("empid");
+    const activeFlagIndex = headers.indexOf("crc6f_activeflag");
+
+    if (empIdIndex === -1 || activeFlagIndex === -1) {
+      return res.status(400).json({ message: "CSV missing 'empid' or 'crc6f_activeflag' columns" });
+    }
+
+    const sharepointStatuses = new Map();
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""));
+      const empId = row[empIdIndex];
+      const activeFlag = row[activeFlagIndex]?.toLowerCase();
+      if (empId) {
+        sharepointStatuses.set(empId, activeFlag === "true" || activeFlag === "1" || activeFlag === "yes" || activeFlag === "active" ? "active" : "inactive");
+      }
+    }
+
+    // 4. Update Database
+    const employees = await db.getAll(SHEETS.EMPLOYEES);
+    let updatedCount = 0;
+
+    for (const emp of employees) {
+      const spStatus = sharepointStatuses.get(String(emp.employee_id));
+      if (spStatus && String(emp.status).toLowerCase() !== spStatus) {
+        await db.updateById(SHEETS.EMPLOYEES, emp.employee_id, {
+          ...emp,
+          status: spStatus,
+          updated_at: nowIso(),
+        });
+        updatedCount++;
+      }
+    }
+
+    return res.json({ message: "Sync successful", updatedCount });
+  } catch (error) {
+    console.error("[SharePoint Sync Error]", error);
+    return res.status(500).json({ message: error.message || "Failed to sync with SharePoint" });
+  }
+});
+
 module.exports = router;

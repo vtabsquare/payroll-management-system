@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle, ArrowUpDown, ArrowUp, ArrowDown, ArrowDownAZ, Wallet } from "lucide-react";
+import { Plus, Search, Edit2, Power, UserRoundCheck, User, Building, CreditCard, Calendar, ChevronLeft, ChevronRight, X, Check, ChevronDown, CheckCircle2, AlertCircle, MinusCircle, ArrowUpDown, ArrowUp, ArrowDown, ArrowDownAZ, Wallet, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,8 @@ export default function EmployeesPage() {
   const [ledgerEmployeeFilter, setLedgerEmployeeFilter] = useState<string>("all");
   const [payoutModalOpen, setPayoutModalOpen] = useState(false);
   const [payoutEmployee, setPayoutEmployee] = useState<{ id: string; name: string; balance: number } | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   // Get unique designations from existing employees
@@ -131,7 +133,12 @@ export default function EmployeesPage() {
 
   const filtered = useMemo(() => {
     let result = list;
+
+    if (!showInactive) {
+      result = result.filter(employee => employee.status === "active");
+    }
     
+
     // Apply search filter
     const query = search.trim().toLowerCase();
     if (query) {
@@ -167,7 +174,7 @@ export default function EmployeesPage() {
     }
     
     return result;
-  }, [list, search, sortBy, sortOrder]);
+  }, [list, search, sortBy, sortOrder, showInactive]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -195,6 +202,26 @@ export default function EmployeesPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSharePointSync = async () => {
+    try {
+      setSyncing(true);
+      const response = await api.syncSharePoint();
+      toast({
+        title: "SharePoint Sync Successful",
+        description: `Successfully synchronized employees. ${response.updatedCount} records updated.`,
+      });
+      await loadEmployees();
+    } catch (error) {
+      toast({
+        title: "SharePoint Sync Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -722,21 +749,43 @@ export default function EmployeesPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Employees</h1>
           <p className="text-sm text-muted-foreground mt-1">{list.length} total employees</p>
+        </div>        <div className="flex items-center gap-3">
+          <Button 
+            onClick={handleSharePointSync} 
+            disabled={syncing}
+            variant="outline"
+            className="border-primary/20 hover:bg-primary/5"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync with SharePoint'}
+          </Button>
+          <Button onClick={openAdd} className="gradient-primary text-primary-foreground border-0">
+            <Plus className="w-4 h-4 mr-2" /> Add Employee
+          </Button>
         </div>
-        <Button onClick={openAdd} className="gradient-primary text-primary-foreground border-0">
-          <Plus className="w-4 h-4 mr-2" /> Add Employee
-        </Button>
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="relative max-w-sm w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search employees..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="relative max-w-sm w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search employees..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-4 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm focus-visible:bg-background transition-all"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="show-inactive" 
+              checked={showInactive} 
+              onCheckedChange={(checked) => setShowInactive(checked === true)}
+            />
+            <label htmlFor="show-inactive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-muted-foreground">
+              Show Inactive
+            </label>
+          </div>
         </div>
 
         <div className="inline-flex rounded-lg border border-border/70 bg-card p-1 w-fit">
@@ -859,7 +908,7 @@ export default function EmployeesPage() {
             Selected employee details ({selectedEmployees.length})
           </div>
           {selectedEmployees.map((employee) => (
-            <div key={`card-container-${employee.employee_id}`} className="space-y-6 animate-in fade-in duration-500">
+            <div key={`card-container-${employee.employee_id}`} className={`space-y-6 animate-in fade-in duration-500 ${employee.status === "inactive" ? "opacity-50 grayscale" : ""}`}>
               <div className="flex items-center justify-between border-b border-border/60 pb-2">
                 <h2 className="text-xl font-bold text-foreground">
                   {employee.first_name} {employee.last_name}
@@ -1004,7 +1053,7 @@ export default function EmployeesPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                      className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${emp.status === "inactive" ? "opacity-50 grayscale" : ""}`}
                     >
                       <td className="p-4">
                         <div className="space-y-1">

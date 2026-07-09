@@ -55,9 +55,10 @@ export default function SalarySchedule() {
   const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
 
   const filteredEmployees = useMemo(() => {
-    if (!employeeSearchTerm.trim()) return employees;
+    const activeEmployees = employees.filter(emp => emp.status === "active");
+    if (!employeeSearchTerm.trim()) return activeEmployees;
     const term = employeeSearchTerm.toLowerCase();
-    return employees.filter(
+    return activeEmployees.filter(
       (emp) =>
         emp.employee_id.toLowerCase().includes(term) ||
         emp.first_name.toLowerCase().includes(term) ||

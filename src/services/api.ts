@@ -188,6 +188,12 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
 
+  syncSharePoint: () =>
+    apiRequest<{ message: string; updatedCount: number }>("/employees/sync-sharepoint", {
+      method: "POST",
+    }),
+
+
   getUsers: () => apiRequest<{ users: UserRecord[] }>("/users"),
 
   createUser: (payload: { email: string; role: UserRole; employee_id?: string; password: string }) =>
