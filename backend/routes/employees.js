@@ -7,6 +7,33 @@ const { authenticate, authorize } = require("../middleware/auth");
 const { maskSalaries } = require("../middleware/maskSalaries");
 
 const router = express.Router();
+
+function parseCSVLine(line) {
+  const out = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (ch === ',' && !inQuotes) {
+      out.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current.trim());
+  return out;
+}
+
 router.use(authenticate, authorize("admin"), maskSalaries);
 
 function validateEmployee(body) {
@@ -224,9 +251,12 @@ router.post("/sync-sharepoint", async (req, res) => {
       return res.status(400).json({ message: "CSV file is empty or has no data rows" });
     }
 
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+    const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
     let empIdIndex = headers.indexOf("empid");
     if (empIdIndex === -1) empIdIndex = headers.indexOf("crc6f_empid");
+    if (empIdIndex === -1) empIdIndex = headers.indexOf("crc6f_employeeid");
+    if (empIdIndex === -1) empIdIndex = headers.indexOf("employeeid");
+    
     let activeFlagIndex = headers.indexOf("crc6f_activeflag");
     if (activeFlagIndex === -1) activeFlagIndex = headers.indexOf("activeflag");
 
@@ -236,9 +266,9 @@ router.post("/sync-sharepoint", async (req, res) => {
 
     const sharepointStatuses = new Map();
     for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""));
-      const empId = row[empIdIndex]?.trim().toLowerCase();
-      const activeFlag = row[activeFlagIndex]?.trim().toLowerCase();
+      const row = parseCSVLine(lines[i]);
+      const empId = row[empIdIndex]?.toLowerCase();
+      const activeFlag = row[activeFlagIndex]?.toLowerCase();
       if (empId) {
         sharepointStatuses.set(empId, activeFlag === "true" || activeFlag === "1" || activeFlag === "yes" || activeFlag === "active" ? "active" : "inactive");
       }
