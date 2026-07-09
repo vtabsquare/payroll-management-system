@@ -225,18 +225,20 @@ router.post("/sync-sharepoint", async (req, res) => {
     }
 
     const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
-    const empIdIndex = headers.indexOf("empid");
-    const activeFlagIndex = headers.indexOf("crc6f_activeflag");
+    let empIdIndex = headers.indexOf("empid");
+    if (empIdIndex === -1) empIdIndex = headers.indexOf("crc6f_empid");
+    let activeFlagIndex = headers.indexOf("crc6f_activeflag");
+    if (activeFlagIndex === -1) activeFlagIndex = headers.indexOf("activeflag");
 
     if (empIdIndex === -1 || activeFlagIndex === -1) {
-      return res.status(400).json({ message: "CSV missing 'empid' or 'crc6f_activeflag' columns" });
+      return res.status(400).json({ message: `CSV missing 'empid'/'crc6f_empid' or 'crc6f_activeflag' columns. Headers: ${headers.join(", ")}` });
     }
 
     const sharepointStatuses = new Map();
     for (let i = 1; i < lines.length; i++) {
       const row = lines[i].split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""));
-      const empId = row[empIdIndex];
-      const activeFlag = row[activeFlagIndex]?.toLowerCase();
+      const empId = row[empIdIndex]?.trim().toLowerCase();
+      const activeFlag = row[activeFlagIndex]?.trim().toLowerCase();
       if (empId) {
         sharepointStatuses.set(empId, activeFlag === "true" || activeFlag === "1" || activeFlag === "yes" || activeFlag === "active" ? "active" : "inactive");
       }
@@ -247,7 +249,8 @@ router.post("/sync-sharepoint", async (req, res) => {
     let updatedCount = 0;
 
     for (const emp of employees) {
-      const spStatus = sharepointStatuses.get(String(emp.employee_id));
+      const dbEmpId = String(emp.employee_id || "").trim().toLowerCase();
+      const spStatus = sharepointStatuses.get(dbEmpId);
       if (spStatus && String(emp.status).toLowerCase() !== spStatus) {
         await db.updateById(SHEETS.EMPLOYEES, emp.employee_id, {
           ...emp,
