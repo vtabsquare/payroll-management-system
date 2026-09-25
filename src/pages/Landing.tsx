@@ -86,11 +86,9 @@ export default function Landing() {
                   Employee Portal
                 </Button>
               </Link>
-              <a href="https://www.vtabsquare.com/?demo=1&product=payroll-management-system&source=payroll-demo" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="h-12 px-8 text-base">
-                  Contact for Demo ↗
-                </Button>
-              </a>
+              <Button asChild size="lg" variant="outline" className="h-12 px-8 text-base">
+                <a href="https://www.vtabsquare.com/?demo=1&product=payroll-management-system&source=payroll-demo" target="_blank" rel="noopener noreferrer">Contact for Demo ↗</a>
+              </Button>
             </div>
           </motion.div>
         </div>
